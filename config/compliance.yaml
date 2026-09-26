@@ -1,0 +1,56 @@
+# Compliance configuration. Enforced in code, not advisory.
+# Changing a value here changes system behaviour — treat as a controlled change.
+
+jurisdictions:
+  primary: CA          # CASL
+  also_applies: [US, EU, UK]   # CAN-SPAM, GDPR/PECR
+
+outbound:
+  require_human_approval: true          # never set to false
+  approval_expires_hours: 72
+  first_batch_individual_approval: true
+  max_contacts_per_batch_initial: 10
+  frequency_cap_per_contact_days: 14
+  frequency_cap_per_domain_per_day: 5
+  send_window:
+    timezone: America/Toronto
+    days: [mon, tue, wed, thu]
+    start: "09:00"
+    end: "16:00"
+  abort_thresholds:
+    bounce_rate_pct: 3.0
+    complaint_rate_pct: 0.1
+    unsubscribe_rate_pct: 2.0
+
+suppression:
+  permanent: true                       # suppression never expires
+  sources: [unsubscribe, hard_bounce, complaint, manual, competitor_domain]
+  check_on_write: true
+  check_on_send: true
+
+prospecting:
+  lawful_public_sources_only: true
+  purchased_lists_permitted: false
+  scraping_behind_login_permitted: false
+  respect_robots_txt: true
+  respect_terms_of_service: true
+  record_lawful_basis: true             # per contact, mandatory
+
+data:
+  contact_retention_days: 730
+  audit_log_retention_days: 2555        # 7 years
+  deletion_on_request_sla_days: 30
+  pii_fields_encrypted: true
+  business_contacts_only: true
+
+content:
+  require_claim_evidence: true          # unverified claim blocks publication
+  block_unverified_marker: "[UNVERIFIED"
+  competitor_citation_max_age_days: 90
+  fabricated_social_proof_permitted: false
+
+environments:
+  staging:
+    send_guard_enabled: true            # recipients restricted to allowlist
+    allowlisted_recipients: []          # fill in D10
+    real_publishing_permitted: false

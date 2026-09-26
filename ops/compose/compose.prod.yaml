@@ -1,0 +1,96 @@
+# STARTER — completed and hardened in Phase D6. Do not deploy as-is.
+# Images must be digest-pinned and cosign-verified before any real deploy.
+
+name: vge
+
+x-common: &common
+  restart: unless-stopped
+  logging:
+    driver: json-file
+    options: { max-size: "10m", max-file: "5" }
+  security_opt: ["no-new-privileges:true"]
+  env_file: [../../.env]
+
+services:
+  proxy:
+    <<: *common
+    image: caddy:2-alpine          # pin by digest in D6
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+    # No published ports: ingress arrives via the Cloudflare tunnel only.
+    depends_on: [api, console]
+
+  tunnel:
+    <<: *common
+    image: cloudflare/cloudflared:latest   # pin by digest in D6
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN}
+
+  api:
+    <<: *common
+    image: ghcr.io/OWNER/vge-api@sha256:REPLACE
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+    deploy:
+      resources:
+        limits: { cpus: "1.5", memory: 1536M }
+    depends_on:
+      redis: { condition: service_healthy }
+
+  worker:
+    <<: *common
+    image: ghcr.io/OWNER/vge-worker@sha256:REPLACE
+    read_only: true
+    tmpfs: [/tmp]
+    stop_grace_period: 120s        # drain in-flight jobs, release queue leases
+    deploy:
+      resources:
+        limits: { cpus: "2", memory: 2048M }
+    depends_on:
+      redis: { condition: service_healthy }
+
+  scheduler:
+    <<: *common
+    image: ghcr.io/OWNER/vge-scheduler@sha256:REPLACE
+    read_only: true
+    deploy:
+      resources:
+        limits: { cpus: "0.5", memory: 512M }
+    depends_on:
+      redis: { condition: service_healthy }
+
+  console:
+    <<: *common
+    image: ghcr.io/OWNER/vge-console@sha256:REPLACE
+    read_only: true
+    deploy:
+      resources:
+        limits: { cpus: "1", memory: 1024M }
+
+  redis:
+    <<: *common
+    image: redis:7-alpine          # pin by digest in D6
+    command: >
+      redis-server --requirepass ${REDIS_PASSWORD}
+      --appendonly yes --appendfsync everysec
+      --bind 0.0.0.0 --protected-mode yes
+    volumes: [redis_data:/data]
+    healthcheck:
+      test: ["CMD", "redis-cli", "--no-auth-warning", "-a", "${REDIS_PASSWORD}", "ping"]
+      interval: 15s
+      timeout: 3s
+      retries: 5
+
+# Postgres is intentionally ABSENT: managed externally with PITR (decision 3, Phase D0).
+
+volumes:
+  caddy_data:
+  redis_data:

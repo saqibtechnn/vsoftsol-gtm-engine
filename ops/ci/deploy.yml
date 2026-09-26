@@ -1,0 +1,110 @@
+# STARTER — completed in Phase D9. Place at .github/workflows/deploy.yml when ready.
+# Represents the required shape: nothing reaches production without tests, scans,
+# a signed image and a logged human approval.
+
+name: build-test-deploy
+
+on:
+  push: { branches: [main] }
+  pull_request: { branches: [main] }
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false        # never cancel a deploy mid-flight
+
+permissions:
+  contents: read
+  packages: write
+  id-token: write                  # keyless signing
+
+jobs:
+  quality:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_PASSWORD: test, POSTGRES_DB: vge_test }
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['5432:5432']
+      redis:
+        image: redis:7
+        options: >-
+          --health-cmd "redis-cli ping" --health-interval 10s
+          --health-timeout 5s --health-retries 5
+        ports: ['6379:6379']
+    steps:
+      - uses: actions/checkout@v4
+        with: { fetch-depth: 0 }   # full history for secret scanning
+      - name: Lint
+        run: ruff check . && black --check .
+      - name: Type check
+        run: mypy --strict src/
+      - name: Unit tests
+        run: pytest tests/unit --cov --cov-fail-under=85
+      - name: Integration tests
+        run: pytest tests/integration
+      - name: Security scans
+        run: |
+          bandit -r src/
+          pip-audit
+          gitleaks detect --no-git -v
+
+  build:
+    needs: quality
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build images
+        run: |
+          echo "TODO D3/D9: build api, worker, scheduler, console"
+      - name: Scan images
+        run: |
+          echo "TODO: trivy image --exit-code 1 --severity HIGH,CRITICAL"
+      - name: Generate SBOM
+        run: |
+          echo "TODO: syft ... -o spdx-json"
+      - name: Sign images
+        run: |
+          echo "TODO: cosign sign --yes"
+      - name: Push to GHCR
+        run: |
+          echo "TODO: docker push with digest capture"
+
+  staging:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: staging            # auto-deploy
+    steps:
+      - name: Deploy to staging
+        run: |
+          echo "TODO D9: deploy digest-pinned images"
+      - name: Smoke + e2e
+        run: |
+          echo "TODO: run staging suites; fail the job on any failure"
+
+  production:
+    needs: staging
+    runs-on: ubuntu-latest
+    environment: production         # REQUIRED REVIEWER — the human gate
+    steps:
+      - name: Verify signatures
+        run: |
+          echo "TODO: cosign verify — refuse unsigned images"
+      - name: Deploy to production
+        run: |
+          echo "TODO D9: health-gated rolling deploy"
+      - name: Production smoke tests
+        id: smoke
+        run: |
+          echo "TODO: smoke suite"
+      - name: Auto-rollback on smoke failure
+        if: failure()
+        run: |
+          echo "TODO: invoke rollback to previous digest"
+      - name: Append deployment record
+        if: always()
+        run: |
+          echo "TODO: append version, digest, approver, result to DEPLOY_LOG.md"

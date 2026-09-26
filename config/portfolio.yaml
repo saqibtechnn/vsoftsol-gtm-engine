@@ -1,0 +1,95 @@
+# VSoftSol product portfolio — the tools the GTM Engine markets.
+# Adding a product is an edit to this file only, never a code change.
+# marketable: false  =>  analysed but never published about.
+
+company:
+  name: Vision Software Solutions
+  domain: vsoftsol.com
+  site_repo: ""            # e.g. saqibtechnn/vsoftsol-site  — set in D1
+  site_host: vercel
+  dns: cloudflare
+
+products:
+  - key: config-backup
+    name: VSoftSol Network Configuration Backup
+    category: Network configuration backup & restore
+    one_liner: Never lose a device config again
+    repo_path: ""
+    repo_url: ""
+    status: GA
+    version: "1.0.0"
+    deployment: on-prem-windows
+    licensing_model: perpetual-or-subscription   # confirm
+    marketable: true
+    target_segments: [smb-it, regional-msp, education, healthcare-it]
+    evidence_root: ""
+
+  - key: networkvault
+    name: NetworkVault
+    category: Multi-tenant config backup, recovery, compliance & automation
+    one_liner: Config assurance at MSP scale
+    repo_path: ""
+    repo_url: ""
+    status: planned
+    version: "0.1.0"
+    deployment: self-hosted-multi-tenant
+    licensing_model: subscription-per-device
+    marketable: false          # flip to true when there is something real to demo
+    target_segments: [msp, enterprise-netops, regulated-smb]
+    evidence_root: ""
+
+  - key: syslog-manager
+    name: Windows Syslog Manager
+    category: Network device log collection & retention
+    one_liner: Searchable device logs without a SIEM bill
+    repo_path: ""
+    repo_url: ""
+    status: in-development
+    version: "0.1.0"
+    deployment: on-prem-windows
+    licensing_model: perpetual
+    marketable: false
+    target_segments: [smb-it, regional-msp, compliance-driven-smb]
+    evidence_root: ""
+
+  - key: network-monitor
+    name: VSoftSol Network Monitor
+    category: Network monitoring
+    one_liner: Know before your users call
+    repo_path: ""
+    repo_url: "https://github.com/saqibtechnn/VsoftNetwork-Monitoring"
+    status: in-development
+    version: "0.1.0"
+    deployment: on-prem
+    licensing_model: subscription
+    marketable: false
+    target_segments: [smb-it, regional-msp]
+    evidence_root: ""
+
+  - key: vsoft-support
+    name: VSoft Support
+    category: Remote IT support platform
+    one_liner: Support any Windows endpoint, safely
+    repo_path: ""
+    repo_url: ""
+    status: in-development
+    version: "0.1.0"
+    deployment: self-hosted
+    licensing_model: subscription-per-technician
+    marketable: false
+    target_segments: [msp, internal-it-helpdesk]
+    evidence_root: ""
+
+  - key: network-incident-agent
+    name: Network Incident Agent
+    category: Multi-agent network troubleshooting & incident response
+    one_liner: Triage incidents in minutes, not hours
+    repo_path: ""
+    repo_url: ""
+    status: in-development
+    version: "0.1.0"
+    deployment: self-hosted
+    licensing_model: subscription
+    marketable: false
+    target_segments: [enterprise-netops, msp-noc]
+    evidence_root: ""

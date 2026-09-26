@@ -1,0 +1,22 @@
+# Environment definitions. Production credentials never appear in dev or staging.
+
+dev:
+  purpose: local development
+  data: synthetic fixtures only
+  integrations: mocked / contract-faked
+  deploys: developer, any time
+  forbidden: [real contacts, production credentials, real sends, real publishing]
+
+staging:
+  purpose: full rehearsal before anything real
+  data: synthetic and anonymised
+  integrations: sandbox repo, Vercel preview, email sandbox, social dry-run
+  deploys: CI on merge to main
+  forbidden: [production credentials, sends outside the allowlist, PRs against the production site main branch]
+
+production:
+  purpose: live
+  data: real
+  integrations: live, behind approval gates
+  deploys: CI with manual approval only
+  forbidden: [manual host deploys, bulk approval of a first batch, sending without an approver]

@@ -1,26 +1,44 @@
 # Deployment Decisions
 
-Filled in during Phase D0. Every row needs an owner sign-off before D1 begins.
-Recommended defaults are from the deployment plan; Claude Code must state agreement or disagreement with reasons.
+Produced in Phase D0 (2026-09-27). Every row needs owner sign-off before D1 begins.
+Recommended defaults come from `deploy/plan/DEPLOYMENT_PLAN.md` §2. Where Claude Code disagrees with the default, the row says **AMENDED** or **DISAGREE** and why.
+
+Sign-off column: `PENDING` until the owner writes their initials and date. `OPEN` means the owner has not yet supplied an input the decision depends on.
+
+## Plan §2 decisions
 
 | # | Decision | Recommended default | Chosen | Rationale | Reversal path | Signed off |
 |---|---|---|---|---|---|---|
-| 1 | Hosting | Single hardened VPS, 4 vCPU / 8 GB / 80 GB, CA or EU region | | | | |
-| 2 | Data residency | Canada | | | | |
-| 3 | Database | Managed Postgres with PITR | | | | |
-| 4 | Redis | Self-hosted in Compose, persistence on | | | | |
-| 5 | Console exposure | Cloudflare Tunnel + Access, zero open inbound ports | | | | |
-| 6 | Outbound email domain | Dedicated subdomain, never primary vsoftsol.com | | | | |
-| 7 | Email provider | Draft-only now; transactional provider at go-live | | | | |
-| 8 | Container registry | GHCR | | | | |
-| 9 | CI/CD | GitHub Actions with environment protection | | | | |
-| 10 | Secrets | SOPS + age for config; provider store at runtime | | | | |
-| 11 | IaC | OpenTofu (provision) + Ansible (configure) | | | | |
-| 12 | Observability | Hosted free tier initially | | | | |
-| 13 | Environments | dev / staging / production, all three | | | | |
+| 1 | Hosting | Single hardened VPS, 4 vCPU / 8 GB / 80 GB, CA or EU | **AMENDED:** DigitalOcean Basic droplet `s-4vcpu-8gb` (4 vCPU / 8 GB / 160 GB) in **TOR1 (Toronto)** | Hetzner (named in the plan) has no Canadian region. DigitalOcean offers the droplet, managed Postgres and object storage all in TOR1, so data stays in one Canadian region under one provider for D2's OpenTofu. Workload is LLM-bound, not CPU-bound (see SIZING_AND_COST.md). | Host is cattle: OpenTofu module swap to another provider (OVH Beauharnois, Vultr Toronto) + Ansible re-run. No data on the host. | PENDING |
+| 2 | Data residency | Canada | **AMENDED:** Canada for data **at rest** (Postgres, backups, object storage). Processing by US sub-processors disclosed. | Prospect data sent to the Anthropic API for personalisation, and metadata passing through GitHub, Cloudflare and the observability vendor, is processed outside Canada. PIPEDA permits this with notice; the privacy policy (D12) must say so. Claiming "Canada only" would be false. | Tighten by excluding PII from LLM prompts (pseudonymise before the call) — a D8 design option if the owner wants it. | PENDING |
+| 3 | Database | Managed Postgres with PITR | **Agree:** DigitalOcean Managed PostgreSQL 16, TOR1, single node 2 GB, 7-day PITR | Provider docs: daily full backups + WAL, restore to any point within the previous seven days. Single node accepted: RTO is covered by PITR + restore runbook (measured in D4); a standby node doubles DB cost for a single-operator system. | Add standby node (config change, no migration); or `pg_dump` → any Postgres 16. | PENDING |
+| 4 | Redis | Self-hosted in Compose, persistence on | **AMENDED:** Self-hosted in Compose, AOF on — **but holds only reconstructable state** | The plan says queue state is reconstructable. That is only true if every safety-relevant record lives elsewhere. Frequency-cap counters, idempotency keys, send/publish records, approval records and the emergency-stop state are **authoritative in Postgres**. Redis holds job queues, locks and caches only; losing it can delay work but can never cause a duplicate send or an unapproved one. | Move to managed Redis/Valkey — connection string change. | PENDING |
+| 5 | Console exposure | Cloudflare Tunnel + Access, zero inbound ports | **Agree**, plus a webhook ingress path | Email-provider bounce/complaint webhooks need a public URL. They arrive through a **separate tunnel hostname** (`hooks.`), with Access bypass on that path only, HMAC signature verification and replay protection (D8). Still zero open inbound ports. | Tailscale/WireGuard VPN instead of Access — Caddy config change. | PENDING |
+| 6 | Outbound email domain | Dedicated subdomain | **AMENDED:** a **separate registrable sending domain** (recommended) — a subdomain is acceptable if the owner prefers | A subdomain of vsoftsol.com still shares organisational-domain reputation and DMARC alignment with business mail. A separate domain fully isolates cold-outbound reputation. | Move sending to a new domain + fresh warm-up (D12). | **OPEN** — owner to choose and name the domain |
+| 7 | Email provider | Draft-only now; transactional provider at go-live | **DISAGREE with the go-live default.** Draft-only now (`EMAIL_GATEWAY=draft_only`). Go-live provider selected in D12 **from providers whose terms permit B2B cold outreach** | Transactional providers commonly prohibit unsolicited email. Postmark's terms require permission-based lists and name unsolicited sending as a violation ([source](https://emailqo.com/aws-ses-vs-postmark), retrieved 2026-09-27; primary ToS to be re-read in D12). Using one for cold outbound risks suspension of the account on day one. Also: draft-only cannot read replies (Zoho Free has no IMAP), so **reply handling in D10 needs the D12 provider or a mailbox with API/IMAP access on the sending domain.** | Gateway is selectable by config (`EmailGateway` interface). | PENDING (provider itself chosen in D12) |
+| 8 | Container registry | GHCR | **Agree** | Aligned with GitHub-based publishing and Actions OIDC keyless cosign signing. | Retag and push to another OCI registry; update digests. | PENDING |
+| 9 | CI/CD | GitHub Actions + environment protection | **AMENDED:** GitHub Actions on **GitHub Team** plan | GitHub's pricing page (retrieved 2026-09-27): environment protection rules and required reviewers on private repos are Team/Enterprise only. **Single-operator constraint:** GitHub does not let an author approve their own PR. The site repo is fine (VGE's GitHub App opens PRs; the owner approves). For the VGE repo either a second reviewer exists, or the owner uses admin bypass, which is **logged and reviewed** in the D1 access review. | Revert to Free plan and make repos public (not recommended), or accept weaker controls in writing. | **OPEN** — second reviewer? |
+| 10 | Secrets | SOPS + age in git; provider secret store at runtime | **AMENDED:** SOPS + age encrypted files in git; **decrypted at boot into tmpfs (memory) only** | DigitalOcean has no general-purpose secret manager. Decrypt-at-boot into a tmpfs, readable only by the service user, never on disk, never in images. age private key held by the owner + break-glass copy (D1). | Adopt Infisical/Vault later — injection mechanism swap. | PENDING |
+| 11 | IaC | OpenTofu + Ansible | **Agree** | OpenTofu has a maintained DigitalOcean provider. Ansible needs a Linux control node: **WSL2 on the owner's Windows workstation** (or CI runner). | n/a | PENDING |
+| 12 | Observability | Hosted free tier | **Agree:** Grafana Cloud free tier + external uptime monitor | Monitoring must survive the host it monitors. Only **scrubbed** logs ship there (D5/D7). The audit log is **never** delegated to it — it lives in Postgres with 7-year retention per `config/compliance.yaml`. | Self-host or paid tier; OTLP endpoint change only. | PENDING |
+| 13 | Environments | dev / staging / production | **Agree, with ephemeral staging** | Staging is created from OpenTofu for each rehearsal and destroyed afterwards. This cuts cost and exercises the full-rebuild path every time it is used (the D2/D11 rebuild becomes routine, not heroic). | Keep staging permanently up — cost change only. | PENDING |
+
+## Additional decisions surfaced in D0
+
+| # | Decision | Chosen | Rationale | Reversal path | Signed off |
+|---|---|---|---|---|---|
+| 14 | Side-effect isolation | New `dispatcher` service: the **only** component holding the email-send credential, the site-repo write token and social posting tokens | D8 requires the approval gate to be unbypassable at the infrastructure level. Agents (worker) hold no publish/send credential, so a hijacked agent can draft but cannot act. The dispatcher re-checks approval, suppression, compliance and idempotency in Postgres before every side effect. | Merge back into worker (weakens D8 — would need written risk acceptance). | PENDING |
+| 15 | Research egress | All research-fetcher traffic goes through an **egress proxy** (e.g. smokescreen) enforcing SSRF rules, domain policy and rate limits; no other container may reach arbitrary hosts | The research fetcher must reach arbitrary public sites, which contradicts a host-wide egress allowlist. The proxy gives it a controlled, logged path, and every other container keeps a strict allowlist. | Remove the proxy and allowlist per-destination (unworkable for research). | PENDING |
+| 16 | Default LLM | `claude-opus-5` for agent work; cost modelled on it | Highest reliability for claim auditing and prompt-injection resistance. The owner may choose `claude-sonnet-5` for bulk steps to cut LLM cost roughly 60% — an owner decision, not a silent downgrade. | Config value per agent (`ANTHROPIC_MODEL`). | **OPEN** |
+| 17 | D3–D5 sequencing | Recommended: after the D2 gate, **pause deployment** and run BUILD_PROMPT phases 0–1, then resume at D3 | D3 builds the application's images, D4's restore drill runs the application, D5 proves the application's fail-fast config. None can be evidenced without application code. Pretending otherwise would breach "executed, not described". | Run the build first, then D1–D14 straight through. | **OPEN** |
+| 18 | Budget currency | USD (provider billing currency) | All providers bill in USD; avoids FX drift in alerts. | Convert to CAD in reporting. | PENDING |
 
 ## Open questions for the owner
-- Monthly budget ceiling (infrastructure + LLM spend): ______
-- Hosting region confirmation: ______
-- Who holds the break-glass credentials: ______
-- Who is the approver for outbound sends (may differ from the deployer): ______
+- Monthly budget ceiling (infrastructure + LLM spend): **OPEN** — proposed **USD 450/month** (modelled spend USD 409.17), alert at 80% (USD 360). See SIZING_AND_COST.md.
+- Hosting region confirmation: **OPEN** — proposed DigitalOcean TOR1.
+- Who holds the break-glass credentials: **OPEN**.
+- Who is the approver for outbound sends (may differ from the deployer): **OPEN**.
+- Is there a second person who can review code? **OPEN** (affects decision 9).
+- Sending domain name: **OPEN** (decision 6).
+- Site repo `owner/repo` and product repo locations: **OPEN** (needed by D1 token scoping).
+- Physical mailing address for email footers: **OPEN** (needed by D12).

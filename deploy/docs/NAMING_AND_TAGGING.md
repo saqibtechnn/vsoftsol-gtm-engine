@@ -7,16 +7,17 @@ Pattern: `vge-<env>-<component>[-<nn>]`, lowercase, hyphens only.
 
 | Resource | Example |
 |---|---|
-| Droplet | `vge-prod-host-01`, `vge-stg-host-01` |
-| Managed Postgres cluster | `vge-prod-pg`, `vge-stg-pg` |
+| OCI compartment | `vge-prod`, `vge-stg` (one per environment, for IAM isolation) |
+| Compute instance | `vge-prod-host-01`, `vge-stg-host-01` |
+| Postgres container / data volume | `vge-postgres`, volume `vge-prod-pgdata` |
 | Database / app role | database `vge`, role `vge_app` (no superuser); migration role `vge_migrator` |
-| Spaces bucket | `vge-prod-artefacts`, `vge-prod-backups` |
+| Object Storage buckets | `vge-prod-artefacts`, `vge-prod-backups`, `vge-tfstate` |
 | Off-provider backup bucket | `vge-prod-backups-offsite` |
-| VPC | `vge-prod-vpc` |
-| Firewall | `vge-prod-fw` |
+| VCN / subnet | `vge-prod-vcn`, `vge-prod-subnet` |
+| Network security group | `vge-prod-nsg` (zero inbound) |
 | Cloudflare tunnel | `vge-prod-tunnel` |
 | Compose project | `vge` |
-| Containers | `vge-api`, `vge-worker`, `vge-scheduler`, `vge-console`, `vge-dispatcher`, `vge-egress-proxy`, `vge-redis`, `vge-proxy`, `vge-tunnel` |
+| Containers | `vge-api`, `vge-worker`, `vge-scheduler`, `vge-console`, `vge-dispatcher`, `vge-egress-proxy`, `vge-redis`, `vge-postgres`, `vge-walg`, `vge-deploy-agent`, `vge-proxy`, `vge-tunnel` |
 
 `<env>` is one of `dev`, `stg`, `prod`.
 
@@ -25,12 +26,13 @@ Pattern: `vge-<env>-<component>[-<nn>]`, lowercase, hyphens only.
 - `hooks.<zone>` — webhook intake (signature-verified, Access bypass on the webhook path only)
 - Staging uses a `stg-` prefix: `stg-console.<zone>`.
 
-## Mandatory tags (DigitalOcean tags / labels)
+## Mandatory tags (OCI freeform tags; defined tags once a tag namespace exists)
 | Tag | Values |
 |---|---|
 | `project:vge` | always |
 | `env:<dev\|stg\|prod>` | always |
 | `owner:<github-handle>` | always |
+| `free-tier:<true\|false>` | always — makes an accidentally paid resource visible in cost reports |
 | `managed-by:opentofu` | on everything OpenTofu creates |
 | `data-class:<none\|internal\|pii>` | `pii` on Postgres and backup buckets |
 | `cost-center:gtm` | always |

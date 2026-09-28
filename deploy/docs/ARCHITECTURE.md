@@ -1,6 +1,6 @@
 # Deployment Architecture
 
-Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two components — `dispatcher` and `egress-proxy` — per DECISIONS.md #14 and #15. Status: **awaiting owner sign-off**.
+Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two components — `dispatcher` and `egress-proxy` — per DECISIONS.md #14 and #15. Revised 2026-09-28: hosting on OCI Always Free with **Postgres self-hosted on the host** (DECISIONS #1, #3) and production releases gated by an **owner signature verified on the host** (#19). Status: **awaiting owner sign-off**.
 
 ## Topology
 
@@ -16,7 +16,8 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
       │ PR only     └ hooks.   (HMAC, replay-safe)│ send            │ via proxy only
       │                  │ outbound-only tunnel   │                 │
  ┌────┴──────────────────┴────────────────────────┴─────────────────┴─────┐
- │ VGE HOST  (DigitalOcean TOR1, s-4vcpu-8gb, zero inbound ports)          │
+ │ VGE HOST  (OCI Always Free A1 arm64, ca-toronto-1, 2 OCPU/12 GB,        │
+ │            zero inbound ports)                                          │
  │                                                                         │
  │  cloudflared ─► caddy ─► console (Next.js)                              │
  │                      └─► api (FastAPI) ◄── webhooks                     │
@@ -27,18 +28,21 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
  │                                         egress-proxy ──► public web     │
  │                                                                         │
  │  dispatcher  ◄── approved items only (reads approvals from Postgres)    │
+ │                                                                         │
+ │  postgres 16 (self-hosted) ─► wal-g: continuous WAL archive + daily dump│
+ │  deploy-agent: pulls releases, deploys ONLY owner-signed manifests      │
  │   holds: email send key, site-repo write, social tokens                 │
  │                                                                         │
  │  host egress allowlist (nftables): Anthropic, GitHub, GHCR, Vercel,     │
- │  Cloudflare, email provider, social APIs, observability, DO APIs,       │
+ │  Cloudflare, email provider, social APIs, observability, OCI APIs,      │
  │  OS/package mirrors. Everything else DENIED.                            │
  └──────────────────────────────┬──────────────────────────────────────────┘
-                                │ TLS (sslmode=verify-full), private VPC
-                   DigitalOcean Managed PostgreSQL 16 (TOR1)
-                   daily backups + 7-day PITR
+                                │ WAL + encrypted dumps (client-side encrypted before upload)
+                   OCI Object Storage, ca-toronto-1 (Always Free, 20 GB)
+                   7-day PITR window + daily logical dumps
                                 │
             ┌───────────────────┴─────────────────────┐
-     DO Spaces (TOR1)                       Off-provider copy (encrypted)
+     artefacts + OpenTofu state             Off-provider copy (encrypted)
      artefacts, exports, logical dumps      second location, CA region preferred (D4)
 ```
 
@@ -55,7 +59,9 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
 | `egress-proxy` | Only path to arbitrary web hosts. SSRF deny (private ranges, metadata IPs), protocol allowlist, redirect cap, per-domain rate limit, request logging | public web | none | Research stops (fails closed). |
 | `dispatcher` | Performs every external side effect: send email, open site PR, post social. Before each: approval valid and unexpired, suppression clear, compliance checklist pass, emergency stop clear, idempotency key unused — **all read from Postgres** | Postgres, email provider, GitHub (write to site repo branches only), social APIs | **Only** holder of send, site-write and social tokens | Nothing is sent or published. Correct fail-closed state. |
 | `redis` | Queues, locks, rate-limit windows, caches | internal network only | password | Work delayed; no safety state lost (DECISIONS #4). |
-| Managed Postgres | System of record: approvals, claims, suppressions, contacts, audit log, idempotency keys, stop state | — | — | `/readyz` not-ready; dispatcher and workers halt. |
+| `postgres` (self-hosted) | System of record: approvals, claims, suppressions, contacts, audit log, idempotency keys, stop state. Bound to the internal Compose network only | internal network only | superuser password (never used by the app); `vge_app` role | `/readyz` not-ready; dispatcher and workers halt (fail closed). Host loss → restore from WAL archive; RPO = archive lag (target ≤ 5 min) |
+| `wal-g` sidecar | Continuous WAL archiving + daily base backup and logical dump to OCI Object Storage, client-side encrypted; replicates to the off-provider copy | postgres, OCI Object Storage, off-provider store | storage keys (write-only where the provider allows) | Archive lag grows; **backup-failure alert** (D4/D7). Nothing unsafe happens, but RPO worsens until fixed |
+| `deploy-agent` | Polls for release manifests; verifies the **owner signature** plus cosign image signatures; performs the health-gated rollout | GHCR, GitHub (read), Docker socket | read-only registry token; owner **public** key only | No deploys happen. Running release unaffected |
 
 ## Data flows (write path to the outside world)
 
@@ -78,7 +84,8 @@ No path exists from 1 to 3 that skips 2. The worker cannot perform 3 because it 
 | Fetched content / repo content / email replies → agents | **Data only, never instructions** | Content delimiting, per-agent tool allow-lists, no credentials in the agent tier | D8 |
 | Worker → side effects | Nothing directly | Credential isolation in `dispatcher` | D8 |
 | Staging → real recipients | Nothing | Send-guard allowlist in the dispatcher | D5, D10 |
-| Host → Postgres | SQL | Private VPC, TLS verify-full, least-privilege role | D4 |
+| App containers → Postgres | SQL | Internal Compose network only, never published; least-privilege `vge_app` role; TLS inside the host network | D4 |
+| CI → production | Nothing directly | Host deploys only owner-signed release manifests (DECISIONS #19) | D9 |
 
 ## Public / private / allowlisted
 

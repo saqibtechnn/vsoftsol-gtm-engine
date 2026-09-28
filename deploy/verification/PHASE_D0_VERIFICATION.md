@@ -2,44 +2,46 @@
 
 **Phase:** D0 — Deployment Architecture & Readiness Baseline
 **Executed by:** Claude Code (main thread; `deployment-architect` role performed inline)
-**Date:** 2026-09-27
+**Date:** 2026-09-27, revised 2026-09-28 (owner chose near-free hosting)
 **Environment(s):** none — documentation phase, nothing provisioned
 **Result:** **PASS WITH CONDITIONS — awaiting owner sign-off and owner inputs**
 
 ---
 
 ## 1. What was built
-- `deploy/docs/DECISIONS.md` — all 13 plan §2 decisions answered with choice, rationale and reversal path; 5 further decisions (#14–#18) surfaced; open questions listed.
-- `deploy/docs/ARCHITECTURE.md` — final topology, component responsibilities (including failure behaviour), data flows, trust boundaries, public/private/allowlisted surfaces.
-- `deploy/docs/ENVIRONMENTS.md` — dev/staging/production matrix, forbidden actions per environment, promotion path.
-- `deploy/docs/SIZING_AND_COST.md` — workload assumptions, container memory budget, cost per environment as single figures, ceiling and alerts, LLM cost per campaign.
-- `deploy/docs/THREAT_MODEL.md` — 10 assets, 7 actors, entry points, 19 threats each with mitigation, phase and residual risk; 15 scaffold findings tracked (F1–F15).
-- `deploy/docs/NAMING_AND_TAGGING.md` — resource names, hostnames, mandatory tags, versioning, secret file locations.
-- `deploy/docs/RACI.md` — roles, activity matrix, escalation, single-operator limitations.
+- `deploy/docs/DECISIONS.md` — all 13 plan §2 decisions answered with choice, rationale and reversal path; 8 further decisions (#14–#21); open questions. Revised for the owner's free-hosting choice; the cost-driven departures from the plan are marked **COST-DRIVEN**.
+- `deploy/docs/ARCHITECTURE.md` — topology on OCI Always Free (arm64, Toronto) with self-hosted Postgres + WAL-G, `dispatcher` credential isolation, research `egress-proxy`, and a `deploy-agent` accepting only owner-signed releases; component responsibilities with failure behaviour; data flows; trust boundaries.
+- `deploy/docs/ENVIRONMENTS.md` — dev/staging/production matrix, forbidden actions, promotion path via owner-signed release.
+- `deploy/docs/SIZING_AND_COST.md` — workload assumptions, 12 GB memory budget, cost per environment as single figures, ceiling and alerts.
+- `deploy/docs/THREAT_MODEL.md` — 10 assets, 7 actors, 22 threats each with mitigation, phase and residual risk; 15 scaffold findings (F1–F15).
+- `deploy/docs/NAMING_AND_TAGGING.md` — OCI resource names, hostnames, mandatory tags (incl. `free-tier`), versioning, secret file locations.
+- `deploy/docs/RACI.md` — roles (owner is approver and break-glass holder; no second reviewer), activity matrix, escalation.
 - Repository initialised (commit `b92775d`) with `.gitattributes` pinning LF endings.
 
 ## 2. What was deliberately NOT built
-- Nothing provisioned, purchased or configured at any provider (D0 rule).
-- Scaffold defects F1–F15 were **not** fixed; each is assigned to its owning phase in THREAT_MODEL.md §5.
-- The go-live email provider is not chosen; that happens in D12 against provider terms (DECISIONS #7).
-- `ops/scripts/preflight.sh` reports FAIL (Docker not installed). D0 produces documents only and needs no Docker, so D0 proceeded. **Docker Desktop + WSL2 must be installed before D2.** Recorded here as a condition, not waived.
+- Nothing provisioned, purchased or configured at any provider (D0 rule). **No Oracle account was created.** The home-region choice at sign-up is irreversible, and account creation is a D1 owner action.
+- Scaffold defects F1–F15 were not fixed; each is assigned to its owning phase.
+- `ops/compose/compose.prod.yaml` was not changed to add `postgres`, `wal-g` and `deploy-agent`. That is D4/D6/D9 work, and the design is recorded here.
+- Go-live email provider not chosen (D12).
+- `ops/scripts/preflight.sh` reports FAIL (Docker not installed). D0 needs no Docker. **Docker Desktop + WSL2 must be installed before D2** (condition C5).
 
 ## 3. Decisions made
-See `deploy/docs/DECISIONS.md`. Summary of where Claude Code departed from the plan's defaults:
+See `deploy/docs/DECISIONS.md`. Departures from the plan's defaults:
 
 | Decision | Plan default | Chosen | Rationale | Reversible? |
 |---|---|---|---|---|
-| #1 Hosting | Single VPS (Hetzner/DO/Vultr) | DigitalOcean TOR1 | Hetzner has no Canadian region; DO has droplet, managed Postgres (TOR1 confirmed on provider availability page) and storage in one region | Yes |
-| #2 Residency | Canada | Canada at rest; US processors disclosed | LLM and SaaS processing happens outside Canada; honesty required in the privacy policy | Yes |
-| #4 Redis | Self-hosted, queue state reconstructable | Self-hosted; safety state in Postgres only | Otherwise losing Redis could cause duplicate or unapproved sends | Yes |
-| #6 Sending domain | Dedicated subdomain | Separate domain recommended | Full reputation isolation | Yes |
-| #7 Email provider | Transactional provider at go-live | Provider whose terms permit cold outreach | Postmark prohibits unsolicited email | Yes |
-| #9 CI/CD | GitHub Actions | + GitHub Team plan | Environment protection on private repos requires Team (pricing page, 2026-09-27) | Yes |
-| #10 Secrets | Provider secret store at runtime | tmpfs decrypt at boot | DigitalOcean has no general secret manager | Yes |
-| #14 | — | `dispatcher` credential isolation | Makes the approval gate unbypassable by architecture (D8) | Yes, with risk acceptance |
-| #15 | — | Research egress proxy | Reconciles "egress allowlist" with "research arbitrary sites" | Yes |
+| #1 Hosting | Single VPS 4 vCPU / 8 GB | OCI Always Free A1 2 OCPU / 12 GB, `ca-toronto-1` | Owner's cost choice; Toronto region confirmed on Oracle's regions page | Yes (rebuild + restore) |
+| #2 Residency | Canada | Canada at rest; US processors disclosed | Honesty in the privacy policy | Yes |
+| #3 Database | Managed Postgres | **Self-hosted** + WAL-G 7-day PITR + off-provider copy | Owner's cost choice; **contrary to the plan's advice**; D4 must prove restore from WAL | Yes |
+| #4 Redis | Queue state reconstructable | Safety state in Postgres only | Prevents duplicate or unapproved sends on Redis loss | Yes |
+| #6 Sending domain | Subdomain | Separate domain recommended | Reputation isolation | Yes |
+| #7 Email provider | Transactional provider | Provider whose terms permit cold outreach | Postmark prohibits unsolicited email | Yes |
+| #9 CI/CD | GitHub environment protection | GitHub Free + owner-signed release (#19) | Environment protection on private repos needs a paid plan | Yes |
+| #13 Staging | Permanent | Ephemeral, paid hourly (USD 2.28/month) | Production uses the whole free A1 allowance | Yes |
+| #14, #15, #19–#21 | — | dispatcher, egress proxy, owner-signed releases, arm64, reclaim guard | Architecture needed for D8 and the free tier | Yes |
 
 ## 4. Verification performed
+All commands below were re-run on 2026-09-28 against the revised documents.
 
 ### Criterion: Every decision in plan §2 has a recorded answer, rationale and owner sign-off
 - **Command(s) run:**
@@ -52,46 +54,52 @@ grep -cE '\| (PENDING|\*\*OPEN\*\*)' deploy/docs/DECISIONS.md
 13 rows checked, 0 empty cells
 18
 ```
-- **Result:** Answer and rationale **PASS**. Owner sign-off **NOT YET** — all 18 decisions show PENDING or OPEN.
-- **Notes:** Condition C1 below.
+- **Result:** Answer and rationale **PASS**. Owner sign-off **NOT YET**: 18 of 21 decisions show PENDING or OPEN (#9, #16 and #17 carry owner answers from 2026-09-28).
 
 ### Criterion: Architecture reviewed against plan §1 and §3; no principle contradicted
-- **Method:** Manual review, principle by principle (no command can check this):
+Manual review, principle by principle:
 
 | Plan §1 principle | Where satisfied | Contradiction? |
 |---|---|---|
-| Reproducible over convenient | ARCHITECTURE (host holds no data), DECISIONS #13 ephemeral staging | None |
-| Right-sized, no Kubernetes | Single host + Compose; scale trigger in SIZING_AND_COST §2 | None |
-| Private by default | Zero inbound ports; console behind Access; only `hooks.` public, authenticated | None — `hooks.` is the plan's permitted "webhook endpoints" surface |
-| Fail closed | Component table: every failure leads to "nothing sent" | None |
-| Every outbound action reversible or gated; stop works without console | Dispatcher gate; T17; RACI escalation | None |
-| Data minimisation as infrastructure | PII only in Postgres; retention jobs D4; tags `data-class:pii` | None |
-| Plan §3 topology | Retained; adds `dispatcher` and `egress-proxy` | Additive amendment, recorded as DECISIONS #14–#15 |
+| Reproducible over convenient | Host rebuildable from IaC; data restorable from off-host WAL archive; ephemeral staging rebuilds routinely | None |
+| Right-sized, no Kubernetes | Single host + Compose | None |
+| Private by default | Zero inbound ports (OCI NSG); console behind Access; only authenticated `hooks.` public | None |
+| Fail closed | Every component failure leads to "nothing sent" | None |
+| Every outbound action gated; stop works without console | Dispatcher; T17 | None |
+| Data minimisation as infrastructure | PII only in Postgres; retention jobs D4 | None |
+| Plan §2 decision 3 guidance ("self-hosting a database you must never lose is a false economy") | — | **Deliberate, owner-driven departure.** Recorded as COST-DRIVEN in DECISIONS #3 with compensating controls (WAL-G PITR, off-provider copy, restore drill in D4) and threat T21 |
+| Plan §3 topology | Retained; adds dispatcher, egress-proxy, wal-g, deploy-agent; Postgres moves onto the host | Amendment, recorded |
 
-- **Result:** PASS
+- **Result:** PASS WITH CONDITION. The one departure from plan advice is explicit, owner-driven and needs owner sign-off (C1).
 
 ### Criterion: Cost model produces concrete monthly figures per environment with a stated ceiling
-- **Command run:** independent recomputation of every figure in SIZING_AND_COST.md
-```
-awk 'BEGIN{ split("48.00 30.45 5.00 1.00 1.25 4.00 10.00",a," "); ... }'
-```
+- **Command run:** independent recomputation (awk) of every figure in SIZING_AND_COST.md
 - **Output:**
 ```
-prod_infra=99.70 campaign=53.25 (in=6.50 out=0.83) prod_llm=243.00 prod_total=342.70
-staging_infra=3.22 staging_total=56.47 all_envs=409.17 llm/infra_all=2.98 llm/infra_prod=2.44 sonnet_campaign=21.30
+prod_infra=11.25 campaign=53.25 prod_llm=243.00 prod_total=254.25
+staging_infra=2.28 staging_total=55.53 dev=10.00 all_envs=319.78 llm_share=95.8% saving_vs_draft=89.39
+memory_limits_MB=8576 of 12288
 ```
-- **Result:** PASS — every figure matches the document. Ceiling proposed at USD 450, alert at USD 360; **the ceiling itself awaits owner confirmation** (C1).
-- **Notes:** The droplet price (USD 48) is the DigitalOcean Basic list price for this tier. The fetched pricing page confirmed the USD 24 2 vCPU/4 GB plan in the same tier but did not render the 4 vCPU/8 GB row, so it is re-confirmed in D2's `tofu plan` review (C4).
+Cross-check that the documents quote the same figures:
+```
+grep -ohE "(319\.78|254\.25|55\.53|13\.53|306\.25|11\.25|27\.74|8576 MB)" deploy/docs/SIZING_AND_COST.md deploy/docs/DECISIONS.md | sort | uniq -c
+      2 11.25
+      1 13.53
+      1 254.25
+      2 27.74
+      1 306.25
+      2 319.78
+      1 55.53
+      1 8576 MB
+```
+- **Result:** PASS. Ceiling proposed at USD 350, alert at USD 280, awaiting owner confirmation (C1).
+- **Notes:** Two arithmetic slips in the first revision (a paid-instance figure and the total) were caught by this recomputation and corrected before this report. Sources disagree on the free A1 allowance: third-party pages cite 4 OCPU / 24 GB, Oracle's current documentation says 2 OCPU / 12 GB. The model uses Oracle's figure.
 
 ### Criterion: Every threat has at least one concrete mitigation mapped to a specific later phase
-- **Command(s) run:**
-```
-awk -F'|' '/^\| T[0-9]+ \|/ { n++; if ($6 !~ /D[0-9]+/) { print "UNMAPPED "$2; bad++ } } END { print n" threats, "bad+0" unmapped" }' deploy/docs/THREAT_MODEL.md
-for k in "web content" "email reply" "Over-permissioned" "Unapproved send" "exfiltration" "supply-chain" "Credential compromise" "Operator error"; do grep -qi "$k" deploy/docs/THREAT_MODEL.md && echo "  [x] $k" || echo "  [ ] MISSING $k"; done
-```
+- **Command(s) run:** as in the first revision (awk over T-rows; keyword presence check)
 - **Output:**
 ```
-19 threats, 0 unmapped
+22 threats, 0 unmapped
   [x] web content
   [x] email reply
   [x] Over-permissioned
@@ -104,85 +112,54 @@ for k in "web content" "email reply" "Over-permissioned" "Unapproved send" "exfi
 - **Result:** PASS
 
 ### Criterion: No unmapped requirement — every plan requirement appears in some phase's deliverables
-- **Command run:** keyword traceability over `deploy/phases/*.md` for the plan §1/§3/§4 requirements
-- **Output:**
-```
-  egress allowlist                   D2
-  Tunnel                             D6
-  emergency stop                     D14 D6
-  PITR                               D4
-  send-guard                         D10 D5
-  SBOM                               D3
-  cosign                             D3
-  prompt-injection|hostile instructions D14 D8
-  suppression                        D10 D12 D3
-  DMARC                              D12
-  restore drill                      D4
-  retention                          D4 D9
-  rate limit                         D8
-  MFA                                D1 D8
-  manual approval|Manual approval    D9
-  rollback                           D14 D6 D9
-  canary|Canary                      D13
-  warm-up                            UNMAPPED
-  idempotency|Idempotency            D11
-  fail closed|fails closed           D11 D14 D6
-  data minimi|PII                    D14 D4 D7
-  staging                            D0 D10 D5 D9
-  log scrubbing|Log scrubbing        D5
-```
-Follow-up on the one UNMAPPED hit:
-```
-grep -niE "warm.?up|volume ramp" deploy/phases/*.md
-deploy/phases/PHASE_D12.md:17:3. `deploy/docs/WARMUP_SCHEDULE.md` — paced volume ramp with engagement thresholds and abort criteria.
-```
-- **Result:** PASS — warm-up is mapped to D12; the miss was a wording difference. The "suppression → D3" hit is a false positive (scanner suppressions), and suppression is still correctly mapped to D10/D12.
-- **Notes:** Keyword traceability is shallow by nature. D14 performs the full requirement-by-requirement audit.
+- **Command run:** keyword traceability over `deploy/phases/*.md` (2026-09-27; phase files unchanged since)
+- **Output:** 22 of 23 requirement keywords mapped directly. "warm-up" initially UNMAPPED; the follow-up grep found it in `PHASE_D12.md:17` (`WARMUP_SCHEDULE.md — paced volume ramp`).
+- **Result:** PASS. Note: D4's deliverables assume *managed* Postgres ("Managed Postgres: TLS-only…"). With DECISIONS #3, D4 must also cover **self-hosted** Postgres hardening and **WAL-archive restore**. Carried as condition C6.
 
-### Supporting check: no placeholder text left in D0 deliverables
+### Supporting checks
 ```
-DECISIONS.md: 0
-ARCHITECTURE.md: 0
-ENVIRONMENTS.md: 0
-SIZING_AND_COST.md: 0
-THREAT_MODEL.md: 0
-NAMING_AND_TAGGING.md: 0
-RACI.md: 0
+== placeholder text in D0 deliverables: 0 in each of the 7 files
+== stale provider references (DigitalOcean|TOR1|droplet|Spaces|GitHub Team plan) in ARCHITECTURE/ENVIRONMENTS/NAMING/THREAT_MODEL/RACI: none
 ```
-PASS.
+PASS. (DECISIONS.md and SIZING_AND_COST.md mention DigitalOcean and GitHub Team deliberately, as the costed alternatives and reversal paths.)
 
 ## 5. Adversarial / negative tests
-D0 introduces no runtime controls. The adversarial work in this phase was a review of the plan and scaffold for bad foundations; it produced findings F1–F15 (THREAT_MODEL §5), of which F3 (stop is slow), F4 (history not scanned), F10 (no evidence source) and F13 (provider terms) would each have caused a real failure later.
+D0 introduces no runtime controls. The adversarial work was a review for bad foundations: findings F1–F15, plus three new threats (T20–T22) that the free-tier design creates.
 
 ## 6. Defects found
 | ID | Severity | Description | Status | Fix / accepted risk |
 |---|---|---|---|---|
-| F1–F15 | High ×6 (F1–F4, F10, F13), Medium ×5, Low ×4 | Scaffold and plan defects (THREAT_MODEL §5) | Open | Assigned to owning phases; none block D0 |
+| F1–F15 | High ×6, Medium ×5, Low ×4 | Scaffold and plan defects (THREAT_MODEL §5) | Open | Assigned to owning phases |
+| D0-1 | Low | Arithmetic slips in the first free-tier revision | Fixed | Caught by the V4 recomputation |
 
 ## 7. Known limitations
-- Provider prices change; they are dated 2026-09-27 and re-confirmed at D2.
-- The LLM cost is an estimate from token budgets, not a measurement. D7 measures real spend; D10 records a real campaign cost.
-- The Postmark finding comes from a secondary source; D12 re-reads the provider's primary terms.
+- Provider limits and prices are dated 2026-09-27/28. Oracle can change Always Free terms; D2 re-confirms.
+- The LLM cost is an estimate, not a measurement (D7 measures; D10 records a real campaign).
+- The Postmark finding comes from a secondary source; D12 re-reads the primary terms.
+- Oracle's docs do not state whether Pay As You Go tenancies are exempt from idle reclamation; treated as **not exempt**.
 
 ## 8. Residual risks
 | Risk | Likelihood | Impact | Mitigation | Accepted by |
 |---|---|---|---|---|
-| LLM estimate low by 2× | Medium | Medium | Daily and per-campaign hard stops; D7 cost alerts | Owner (pending) |
-| Single operator: no separation of duties | High | Medium | OPEN roles in RACI; logged admin bypass | Owner (pending) |
-| Application not ready for D3–D5 | High | Medium | DECISIONS #17 | Owner (pending) |
+| Free A1 capacity unavailable in Toronto at build or rebuild | Medium | Medium | Retry; paid A1 fallback (USD 27.74/month) | Owner (pending) |
+| Idle reclamation of the free instance | Low | High | Memory stays above threshold under normal load; D7 alert; rebuild + restore runbook | Owner (pending) |
+| Self-hosted DB: backups fail silently | Medium | Critical | Backup-failure alert, weekly `verify-backup.sh`, D4 drill | Owner (pending) |
+| LLM estimate low by 2× | Medium | Medium | Daily and per-campaign hard stops | Owner (pending) |
+| Single operator: no separation of duties; owner holds break-glass | High | Medium | Logged admin bypass; sealed offline key copy | Owner (pending) |
 
 ## 9. Documentation produced or updated
 Seven D0 docs listed in §1. No runbook belongs to D0.
 
 ## 10. Rollback path
-Documentation only: `git revert` the D0 commit. Each decision carries its own reversal path in DECISIONS.md.
+Documentation only: `git revert` the D0 commits. Each decision carries its own reversal path. Returning to the paid design means restoring the 2026-09-27 versions (commit `b27e241`).
 
 ## 11. Recommendation to the gate
-**PASS WITH CONDITIONS.** Conditions:
-- **C1** — Owner signs off every row in DECISIONS.md and confirms the budget ceiling (USD 450 proposed).
-- **C2** — Owner fills the OPEN inputs that D1 depends on: outbound approver, break-glass holder, second reviewer (yes/no), site repo `owner/repo`, product repo locations.
-- **C3** — Owner decides DECISIONS #17 (D3–D5 sequencing) and #16 (default model).
-- **C4** — Droplet price re-confirmed in the D2 `tofu plan` review.
+**PASS WITH CONDITIONS:**
+- **C1** — Owner signs off DECISIONS.md, **explicitly accepting the COST-DRIVEN rows #1, #3, #9, #13 and #21**, and confirms the budget ceiling (USD 350 proposed).
+- **C2** — Owner supplies D1 inputs: site repo `owner/repo`, product repo locations. When creating the Oracle account, the owner **must choose Toronto (`ca-toronto-1`) as home region**, and must upgrade to Pay As You Go for staging.
+- **C3** — Satisfied 2026-09-28: Opus 5 throughout; pause after D2.
+- **C4** — Provider limits and prices re-confirmed in the D2 `tofu plan` review.
 - **C5** — Docker Desktop + WSL2 installed before D2; preflight shows no FAIL.
+- **C6** — D4's phase file is read as covering self-hosted Postgres hardening and WAL-archive restore (DECISIONS #3). The owner may prefer to amend `PHASE_D4.md` wording at the D4 start.
 
-Sending domain and physical address (also OPEN) are needed by D12, not D1.
+Sending domain and physical address (still OPEN) are needed by D12, not D1.

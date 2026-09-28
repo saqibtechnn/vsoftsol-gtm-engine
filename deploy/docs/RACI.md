@@ -17,7 +17,7 @@ Produced in Phase D0 (2026-09-27). R = Responsible (does it), A = Accountable (s
 | Activity | Owner | Builder | Verifier | Outbound approver | Break-glass holder |
 |---|---|---|---|---|---|
 | Deployment decisions (D0) | A | R | C | I | I |
-| Account and token creation (D1) | A/R (console clicks where unavoidable) | R (IaC, runbooks) | C | I | C |
+| Account and token creation (D1), incl. OCI tenancy with home region Toronto | A/R (console clicks where unavoidable) | R (IaC, runbooks) | C | I | C |
 | Infrastructure provisioning (D2) | A (approves `tofu plan` + spend) | R | C | – | I |
 | Images, data, secrets, release mechanics (D3–D6) | A | R | C | – | I |
 | Observability, security, CI/CD (D7–D9) | A | R | C | – | I |
@@ -29,7 +29,7 @@ Produced in Phase D0 (2026-09-27). R = Responsible (does it), A = Accountable (s
 | Phase gate sign-off | **A/R** | never | recommends | – | – |
 | Approving a send or publish | I | never | – | **A/R** | – |
 | Merging a site PR | A/R | never | – | C | – |
-| Production deploy approval (GitHub environment) | **A/R** | never | – | – | – |
+| Production deploy approval (owner signs the release manifest — DECISIONS #19) | **A/R** | never | – | – | – |
 | Emergency stop | R (anyone may pull it) | R (on instruction) | – | R | R |
 | Restarting after an emergency stop | **A/R** | C | – | C | – |
 | Rollback | A | R (via pipeline) | – | – | – |

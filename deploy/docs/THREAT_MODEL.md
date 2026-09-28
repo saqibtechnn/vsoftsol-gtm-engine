@@ -15,7 +15,7 @@ Scope: the deployed VGE system as described in ARCHITECTURE.md.
 | A7 | Claim ledger and evidence links | Truth-in-marketing guarantee |
 | A8 | Anthropic API key and budget | Direct financial loss; quota exhaustion |
 | A9 | Product source repositories (read access) | Confidential IP of VSoftSol |
-| A10 | Infrastructure credentials (DigitalOcean, Cloudflare, GitHub admin, age keys) | Full compromise |
+| A10 | Infrastructure credentials (Oracle Cloud, Cloudflare, GitHub admin, age keys, owner release-signing key) | Full compromise |
 
 ## 2. Actors
 | ID | Actor | Capability |
@@ -24,7 +24,7 @@ Scope: the deployed VGE system as described in ARCHITECTURE.md.
 | X2 | Anyone who replies to an outbound email | Can place arbitrary text in agent context via the reply handler |
 | X3 | External attacker on the internet | Scans, credential stuffing, webhook forgery |
 | X4 | Compromised upstream dependency or base image | Code execution inside a container |
-| X5 | Compromised provider account (GitHub, Cloudflare, DigitalOcean) | Control-plane access |
+| X5 | Compromised provider account (GitHub, Cloudflare, Oracle Cloud) | Control-plane access |
 | X6 | Well-meaning operator making a mistake | Legitimate access, wrong action |
 | X7 | The agent itself behaving unexpectedly (model error, loop) | Uses whatever tools and budget it has |
 
@@ -52,8 +52,11 @@ Research fetches (via egress-proxy) · inbound email replies · product reposito
 | T15 | SSRF from the research fetcher into cloud metadata or the private network | X1 | Egress-proxy denies private ranges and metadata IPs, caps redirects, allowlists protocols | D8 | Low. |
 | T16 | Staging reaches real recipients or the production site repo | X7, X6 | Separate credentials per environment; dispatcher send-guard allowlist; staging GitHub token scoped to the sandbox repo only | D5, D10 | Low. |
 | T17 | Emergency stop is slow or incomplete | X7 | Stop flag in Postgres and Redis checked by the dispatcher before every side effect; `docker kill` (no graceful drain) of dispatcher then workers; works from the host CLI without the console | D6, D13 | Messages already accepted by the provider cannot be recalled. Low. |
-| T18 | Provider account takeover (DigitalOcean, Cloudflare, GitHub) | X5 | MFA enforced, no shared accounts, audit logs enabled, billing alerts, break-glass procedure | D1 | Medium (single owner = single point of compromise). |
+| T18 | Provider account takeover (Oracle Cloud, Cloudflare, GitHub) | X5 | MFA enforced, no shared accounts, audit logs enabled, billing alerts, break-glass procedure | D1 | Medium (single owner = single point of compromise). |
 | T19 | Sending-provider suspension for cold outreach (terms-of-service breach) | — | Provider chosen in D12 for terms that permit B2B cold outreach; terms re-read and cited | D0, D12 | Low once chosen correctly. |
+| T20 | **Free-tier host loss**: Oracle reclaims an idle Always Free instance, or free A1 capacity is unavailable when (re)building | — | Production load keeps memory above Oracle's 20% idle threshold (no synthetic load); D7 alerts as metrics approach it; host is rebuildable from IaC + backups; documented fallback to paid A1 (USD 27.74/month) | D2, D7, D11 | Rebuild during a capacity shortage could be delayed for hours to days. Outbound simply stops (fail closed). Medium. |
+| T21 | **Database on the application host**: host compromise or loss takes the system of record with it; backups silently stop | X3, X4 | Postgres on internal network only; least-privilege app role; continuous WAL archive + daily dump, client-side encrypted, copied off-provider; backup-failure alert; **measured restore drill from WAL** | D4, D7, D11 | RPO = WAL archive lag (target ≤ 5 min). A host-level attacker could read live PII — same exposure a managed DB would have from a compromised app host. Medium. |
+| T22 | **Release-approval bypass or signing-key loss**: CI or GitHub compromise pushes a malicious release; or the owner's signing key is lost or stolen | X4, X5 | The host deploys only manifests signed by the owner's key, which CI never holds; key hardware-backed or offline; sealed break-glass copy; every deploy logged in `DEPLOY_LOG.md` | D1, D9 | Theft of the owner key + host access = arbitrary deploy. Key loss = no deploys until break-glass rotation. Low–Medium. |
 
 ## 5. Scaffold findings tracked from the D0 review
 Defects in the starter files, recorded here so they are fixed by the owning phase rather than silently.

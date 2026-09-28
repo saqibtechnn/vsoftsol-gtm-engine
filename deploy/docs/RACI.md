@@ -8,9 +8,9 @@ Produced in Phase D0 (2026-09-27). R = Responsible (does it), A = Accountable (s
 | **Owner** | VSoftSol owner (GitHub `saqibtechnn`) | Accountable for everything; signs every gate |
 | **Builder** | Claude Code (main thread + specialist subagents) | Never signs a gate; never approves its own outbound |
 | **Independent verifier** | `qa-verifier` subagent | Must not be the same session that built the phase where practical |
-| **Outbound approver** | **OPEN** — a named person (may be the owner) | Approves every send and publish in the console |
-| **Code reviewer** | **OPEN** — second person, or owner via logged admin bypass (DECISIONS #9) | |
-| **Break-glass holder** | **OPEN** — ideally someone other than the owner | Holds the sealed emergency credentials |
+| **Outbound approver** | Owner (decided 2026-09-28) | Approves every send and publish in the console |
+| **Code reviewer** | None — owner via logged admin bypass (DECISIONS #9, decided 2026-09-28) | |
+| **Break-glass holder** | Owner (decided 2026-09-28) — sealed copy stored offline, separate from daily credentials (D1) | Holds the sealed emergency credentials |
 | **On-call (2am)** | Owner | Single operator: no rotation. Alert routing to the owner's phone (D7) |
 
 ## Matrix

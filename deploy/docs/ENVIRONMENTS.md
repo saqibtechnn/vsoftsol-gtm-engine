@@ -7,12 +7,12 @@ Produced in Phase D0 (2026-09-27). Machine-readable form: `config/environments.y
 | | dev | staging | production |
 |---|---|---|---|
 | **Purpose** | Local development and unit/integration tests | Full dress rehearsal of every integration | Live operation |
-| **Where** | Owner workstation (Docker Desktop + WSL2) | Ephemeral paid OCI A1 instance (2 OCPU / 12 GB, `ca-toronto-1`) with Postgres in Compose, created by OpenTofu per rehearsal and destroyed afterwards | OCI Always Free A1 (2 OCPU / 12 GB, arm64, `ca-toronto-1`); Postgres self-hosted in Compose |
+| **Where** | GitHub Codespaces (DECISIONS #22) | A separate GitHub Codespace running the full Compose stack with its own Cloudflare tunnel, started per rehearsal and stopped afterwards (DECISIONS #13) | OCI Always Free A1 (2 OCPU / 12 GB, arm64, `ca-toronto-1`); Postgres self-hosted in Compose |
 | **Data** | Synthetic fixtures only | Synthetic products and prospects; real schema. **No real personal data.** | Real data |
-| **Anthropic** | Separate dev key, low spend limit | Separate staging key, per-rehearsal spend limit | Production key, daily hard ceiling |
+| **LLM** | None until DECISIONS #16 is decided; then a separate key per environment | Same | Same; USD 0 ceiling applies |
 | **GitHub** | Contract fakes | Sandbox site repo only | vsoftsol.com site repo; PRs only |
 | **Vercel** | Fake | Preview deployments of the sandbox repo | Preview links on production-repo PRs |
-| **Email** | `draft_only`, send-guard on | Sandbox provider mode, **send-guard allowlist enforced by the dispatcher** | Live provider (from D12), send-guard off, approval required |
+| **Email** | `draft_only`, send-guard on | `draft_only`; drafts addressed only to allowlisted test recipients (send-guard) | `draft_only` permanently (DECISIONS #7): approved drafts are hand-sent by the owner; bounces, replies and unsubscribes logged by the owner in the console |
 | **Social** | Dry-run | Dry-run | Live, approval required |
 | **Who deploys** | Developer, any time | CI on merge to `main` | Host deploy-agent, **only** for owner-signed release manifests (DECISIONS #19) |
 | **Access** | Local | Cloudflare Access, owner only | Cloudflare Access + MFA, RBAC |

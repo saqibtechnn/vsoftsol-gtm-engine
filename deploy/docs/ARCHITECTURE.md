@@ -5,45 +5,47 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
 ## Topology
 
 ```
-                              Internet
+                               Internet
+                                  │
+      ┌───────────────────┬───────┴──────────┬──────────────────────┐
+      │                   │                  │                      │
+ vsoftsol.com        Cloudflare          Owner's mailbox        Research targets
+ (Vercel, DNS on     Zero Trust          (hand-sends approved   (public web,
+  Cloudflare)        Tunnel               drafts; subdomain      robots/ToS honoured)
+      ▲              ├ console. (Access/   of vsoftsol.com)            ▲
+      │ PR only      │   OIDC + MFA)             ▲                     │ via proxy only
+      │              └ hooks. (HMAC; reserved    │ owner copies        │ (only once an
+      │                 for future providers)    │ approved drafts     │  LLM exists)
+ ┌────┴───────────────────┴──────────────────────┴─────────────────────┴───┐
+ │ VGE HOST  OCI Always Free A1 (arm64), ca-toronto-1, 2 OCPU / 12 GB       │
+ │           zero inbound ports                                             │
+ │                                                                          │
+ │  cloudflared ─► caddy ─► console (Next.js)                               │
+ │                      └─► api (FastAPI) ◄── owner-logged bounces/replies  │
+ │                                                                          │
+ │  scheduler ─► redis (queues/locks only) ◄── worker (no LLM until #16)    │
+ │                                               │ research fetches         │
+ │                                               ▼                          │
+ │                                          egress-proxy ──► public web     │
+ │                                                                          │
+ │  dispatcher ◄── approved items only (reads approvals from Postgres)      │
+ │    holds: site-repo write token, social tokens (sole holder)             │
+ │    email: renders approved drafts for hand-sending (draft-only, #7)      │
+ │                                                                          │
+ │  postgres 16 (self-hosted) ─► wal-g: continuous WAL archive + daily dump │
+ │  deploy-agent: deploys ONLY owner-signed release manifests (#19)         │
+ │                                                                          │
+ │  host egress allowlist (nftables): GitHub, GHCR, Vercel, Cloudflare,     │
+ │  social APIs, observability, OCI APIs, backup store, OS mirrors,         │
+ │  LLM provider (added only when #16 is decided). All else DENIED.         │
+ └───────────────────────────────┬──────────────────────────────────────────┘
+                                 │ WAL + dumps, client-side encrypted
+                OCI Object Storage, ca-toronto-1 (Always Free, 20 GB)
+                7-day PITR window, daily dumps, OpenTofu state
                                  │
-      ┌──────────────────┬───────┴─────────┬─────────────────────┐
-      │                  │                 │                     │
- vsoftsol.com       Cloudflare         Sending domain        Research targets
- (Vercel, DNS on    Zero Trust         (D12 provider,        (public web,
-  Cloudflare)       Tunnel             separate domain)       robots/ToS honoured)
-      ▲             ├ console. (Access/OIDC+MFA)  ▲                 ▲
-      │ PR only     └ hooks.   (HMAC, replay-safe)│ send            │ via proxy only
-      │                  │ outbound-only tunnel   │                 │
- ┌────┴──────────────────┴────────────────────────┴─────────────────┴─────┐
- │ VGE HOST  (OCI Always Free A1 arm64, ca-toronto-1, 2 OCPU/12 GB,        │
- │            zero inbound ports)                                          │
- │                                                                         │
- │  cloudflared ─► caddy ─► console (Next.js)                              │
- │                      └─► api (FastAPI) ◄── webhooks                     │
- │                                                                         │
- │  scheduler ─► redis (queues/locks only) ◄─ worker (agents, LLM calls)   │
- │                                              │ research fetches         │
- │                                              ▼                          │
- │                                         egress-proxy ──► public web     │
- │                                                                         │
- │  dispatcher  ◄── approved items only (reads approvals from Postgres)    │
- │                                                                         │
- │  postgres 16 (self-hosted) ─► wal-g: continuous WAL archive + daily dump│
- │  deploy-agent: pulls releases, deploys ONLY owner-signed manifests      │
- │   holds: email send key, site-repo write, social tokens                 │
- │                                                                         │
- │  host egress allowlist (nftables): Anthropic, GitHub, GHCR, Vercel,     │
- │  Cloudflare, email provider, social APIs, observability, OCI APIs,      │
- │  OS/package mirrors. Everything else DENIED.                            │
- └──────────────────────────────┬──────────────────────────────────────────┘
-                                │ WAL + encrypted dumps (client-side encrypted before upload)
-                   OCI Object Storage, ca-toronto-1 (Always Free, 20 GB)
-                   7-day PITR window + daily logical dumps
-                                │
-            ┌───────────────────┴─────────────────────┐
-     artefacts + OpenTofu state             Off-provider copy (encrypted)
-     artefacts, exports, logical dumps      second location, CA region preferred (D4)
+                   Off-provider encrypted copy (free tier; location set in D4)
+
+ Dev + staging: GitHub Codespaces (separate credentials, own tunnel) — #13, #22
 ```
 
 ## Component responsibilities
@@ -55,9 +57,9 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
 | `console` | Operator UI: approval queues with diffs, pipeline, ledger, audit viewer, stop button | api only | Session cookie only — **no provider tokens** | No approvals can be given. The system waits; nothing proceeds unapproved. |
 | `api` | Control plane, approval recording, webhook intake (signature-verified), `/healthz` `/readyz` `/version` | Postgres, Redis | DB app role; webhook signing secrets | Approvals and webhooks stop; workers keep drafting; dispatcher sends nothing new (nothing newly approved). |
 | `scheduler` | Enqueues periodic jobs (research refresh, retention, re-verification) | Redis, Postgres | DB app role | No new scheduled work. Silent-failure alert (D7). |
-| `worker` | Runs agents: scanning, research, positioning, content, prospect scoring, drafting | Postgres, Redis, Anthropic API, GitHub (**read-only**), egress-proxy | Anthropic key; read-only repo token | Jobs stay queued; leases expire and retry idempotently. |
+| `worker` | Runs agents: scanning, research, positioning, content, prospect scoring, drafting | Postgres, Redis, LLM provider (none until DECISIONS #16), GitHub (**read-only**), egress-proxy | LLM key (once chosen); read-only repo token | Jobs stay queued; leases expire and retry idempotently. |
 | `egress-proxy` | Only path to arbitrary web hosts. SSRF deny (private ranges, metadata IPs), protocol allowlist, redirect cap, per-domain rate limit, request logging | public web | none | Research stops (fails closed). |
-| `dispatcher` | Performs every external side effect: send email, open site PR, post social. Before each: approval valid and unexpired, suppression clear, compliance checklist pass, emergency stop clear, idempotency key unused — **all read from Postgres** | Postgres, email provider, GitHub (write to site repo branches only), social APIs | **Only** holder of send, site-write and social tokens | Nothing is sent or published. Correct fail-closed state. |
+| `dispatcher` | Performs every external side effect: open site PR, post social, and release approved email drafts for hand-sending (draft-only, DECISIONS #7). Before each: approval valid and unexpired, suppression clear, compliance checklist pass, emergency stop clear, idempotency key unused — **all read from Postgres** | Postgres, GitHub (write to site repo branches only), social APIs | **Only** holder of site-write and social tokens (and of an email-send key if one is ever added) | Nothing is sent or published. Correct fail-closed state. |
 | `redis` | Queues, locks, rate-limit windows, caches | internal network only | password | Work delayed; no safety state lost (DECISIONS #4). |
 | `postgres` (self-hosted) | System of record: approvals, claims, suppressions, contacts, audit log, idempotency keys, stop state. Bound to the internal Compose network only | internal network only | superuser password (never used by the app); `vge_app` role | `/readyz` not-ready; dispatcher and workers halt (fail closed). Host loss → restore from WAL archive; RPO = archive lag (target ≤ 5 min) |
 | `wal-g` sidecar | Continuous WAL archiving + daily base backup and logical dump to OCI Object Storage, client-side encrypted; replicates to the off-provider copy | postgres, OCI Object Storage, off-provider store | storage keys (write-only where the provider allows) | Archive lag grows; **backup-failure alert** (D4/D7). Nothing unsafe happens, but RPO worsens until fixed |
@@ -68,7 +70,7 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
 1. The worker drafts an artefact → stored in Postgres with a `PENDING_APPROVAL` state and a claim-ledger check.
 2. The operator reviews it in the console → the api records a decision (approver, timestamp, diff hash) in Postgres and the audit log.
 3. The dispatcher polls for approved items → re-validates everything → performs the side effect with an idempotency key → records the result.
-4. Provider webhooks (bounce, complaint, unsubscribe) → `hooks.` → api → permanent suppression in Postgres.
+4. Bounces, complaints, unsubscribes and replies: with draft-only sending (DECISIONS #7) the **owner logs each one in the console** → api → permanent suppression in Postgres. The `hooks.` webhook path stays reserved for a future sending provider.
 
 No path exists from 1 to 3 that skips 2. The worker cannot perform 3 because it lacks the credentials.
 

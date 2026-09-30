@@ -5,7 +5,7 @@ Sign-off is by the owner, not by Claude Code.
 
 | Phase | Title | Status | Verified by | Owner sign-off | Date | Tag | Notes |
 |---|---|---|---|---|---|---|---|
-| D0 | Architecture & Readiness Baseline | IN PROGRESS — awaiting owner sign-off | Claude Code (self-check; see PHASE_D0_VERIFICATION.md) | | 2026-09-27 | deploy-v0.0.0 (applied on sign-off) | Recommendation: PASS WITH CONDITIONS C1–C6 (free-hosting revision 2026-09-28) |
+| D0 | Architecture & Readiness Baseline | IN PROGRESS — awaiting owner sign-off | Claude Code (self-check; see PHASE_D0_VERIFICATION.md) | | 2026-09-27 | deploy-v0.0.0 (applied on sign-off) | Recommendation: PASS WITH CONDITIONS C2, C4–C8 (USD 0 revision 2026-09-30). Owner approved in chat 2026-09-30; owner to enter written sign-off |
 | D1 | Accounts, Identity & Access | NOT STARTED | | | | deploy-v0.1.0 | |
 | D2 | IaC & Host Provisioning | NOT STARTED | | | | deploy-v0.2.0 | |
 | D3 | Container & Supply Chain | NOT STARTED | | | | deploy-v0.3.0 | |

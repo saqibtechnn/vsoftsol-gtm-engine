@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # D1 verification: the Cloudflare account-owned token `vge-tofu-dns` can edit DNS on ONE zone
-# and the account's tunnels, and nothing else. All denial checks are reads or deliberately
+# and nothing else (no tunnels or Access: DECISIONS #25). All denial checks are reads or deliberately
 # invalid writes, so a wrongly-broad token changes nothing.
 #
 # Inputs (env):
@@ -35,7 +35,7 @@ echo "$ZONES"
   && echo "PASS  only the intended zone is visible" || { echo "FAIL  zone visibility is broader than one zone"; FAILS=$((FAILS+1)); }
 
 expect "1 in-scope: list DNS records on the zone"      "200"         "$(code GET "/zones/$CF_ZONE_ID/dns_records?per_page=1")"
-expect "2 in-scope: list tunnels"                      "200"         "$(code GET "/accounts/$CF_ACCOUNT_ID/cfd_tunnel?per_page=1")"
+expect "2 list tunnels (not granted, DECISIONS #25)"     "403"         "$(code GET "/accounts/$CF_ACCOUNT_ID/cfd_tunnel?per_page=1")"
 expect "3 read zone settings (not granted)"            "403"         "$(code GET "/zones/$CF_ZONE_ID/settings/ssl")"
 expect "4 change SSL mode (not granted)"               "403"         "$(code PATCH "/zones/$CF_ZONE_ID/settings/ssl" '{"value":"__invalid__"}')"
 expect "5 list account members (not granted)"          "403"         "$(code GET "/accounts/$CF_ACCOUNT_ID/members")"

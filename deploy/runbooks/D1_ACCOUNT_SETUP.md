@@ -46,7 +46,7 @@ Evidence rule: for each step, save the evidence listed (screenshot or command ou
 4. Audit: *Observability → Audit*: confirm retention (default 365 days). **Evidence:** screenshot.
 5. Compartment `vge` under root. Then IAM (Identity domain *Default*):
    - Group `vge-provisioners`; user `vge-tofu` (**no** console password: uncheck *Local password* / don't set one; capabilities: **API keys only**). Add to group.
-   - Policy `vge-provisioners-policy` in **root**: `Allow group vge-provisioners to manage all-resources in compartment vge`
+   - Policy `vge-provisioners-policy` in **root**: `Allow group vge-provisioners to manage all-resources in compartment vge where request.permission != 'BASTION_SESSION_CREATE'` (DECISIONS #25: provisioning may build the bastion but not open sessions). If the console rejects this condition syntax, **stop and report** — do not drop the condition
    - API key for `vge-tofu`: generate **in Codespaces** (`openssl genrsa -out ~/.oci/vge-tofu.pem 2048`; public key uploaded in the console). Private key stays in the Codespaces secret store; never leaves it.
    - **Evidence:** `oci iam user get` output for `vge-tofu` showing `capabilities` (API keys true, console password false).
 6. Revocation test: add a second throwaway API key to `vge-tofu`, run `oci os ns get` with it (works), delete the key, run again (expect `NotAuthenticated`). **Evidence:** both outputs.
@@ -56,12 +56,12 @@ Evidence rule: for each step, save the evidence listed (screenshot or command ou
    ```
    (with the env vars listed in the script header).
 
-## §3 Cloudflare — BLOCKED pending owner decision (IDENTITY_AND_ACCESS §5.1)
+## §3 Cloudflare — only if vsoftsol.com DNS is on Cloudflare (OPEN A6); no Zero Trust, no tunnel (DECISIONS #25)
 Once decided:
 1. Account → *Members*: only the owner; **Enforce two-factor authentication** for members. Owner 2FA on; backup codes → BREAK_GLASS K3. **Evidence:** screenshots.
 2. If vsoftsol.com DNS is (or is moved to) Cloudflare — **a DNS change requires separate explicit confirmation** (CLAUDE.md §2.7).
-3. Account-owned token `vge-tofu-dns` (*Manage Account → Account API Tokens → Create*): Zone·DNS·Edit (zone: vsoftsol.com only), Account·Cloudflare Tunnel·Edit; TTL 90 days. Store as a Codespaces secret. Run `verify_cloudflare_token_scope.sh`. Revocation test with a throwaway token of the same permissions.
-4. Zero Trust: group `vge-operators` and the Access application as in IDENTITY_AND_ACCESS §5.2 (application created in D2 together with the tunnel).
+3. Account-owned token `vge-tofu-dns` (*Manage Account → Account API Tokens → Create*): Zone·DNS·Edit only (zone: vsoftsol.com only); TTL 90 days. Store as a Codespaces secret. Run `verify_cloudflare_token_scope.sh`. Revocation test with a throwaway token of the same permissions.
+4. No Zero Trust organisation, Access application or tunnel is created (DECISIONS #25). Console access is OCI Bastion, built in D2.
 
 ## §4 Git identity on the owner PC / Codespaces
 No git identity is configured on the owner PC by Claude. The owner sets `user.name` / `user.email` and the signing key (§1.3) where commits are made.

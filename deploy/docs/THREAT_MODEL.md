@@ -46,7 +46,7 @@ Research fetches (via egress-proxy) · inbound email replies · product reposito
 | T9 | **Credential compromise** (leak in git, logs, image) | X3, X5 | SOPS + age; tmpfs injection; gitleaks over full history in CI; log scrubbing; rotation runbook; incident runbook | D5, D8, D9 | Owner workstation compromise exposes age key. Mitigated by MFA and break-glass separation. Medium. |
 | T10 | **Operator error**: bulk-approving a bad batch, merging a wrong PR | X6 | First batch individually approved; approvals expire in 72 h; two deliberate steps for any real send; clear diffs; emergency stop | D8, D13, D14 | Human judgement errors remain. Low–Medium. |
 | T11 | Webhook forgery (fake unsubscribe or bounce, or flooding) | X3 | HMAC signature + timestamp replay window; rate limit; Access bypass limited to one path | D8 | Forged events can only *add* suppressions (fail-safe direction). Low. |
-| T12 | Console account takeover | X3 | Cloudflare Access OIDC + MFA; no public exposure; RBAC; session security | D1, D8 | Identity-provider compromise. Low. |
+| T12 | Console account takeover | X3 | No public exposure; OCI login + MFA required to open a Bastion session (≤ 3 h, logged in OCI Audit); app login + RBAC; session security (DECISIONS #25) | D1, D8 | OCI account compromise opens a path to the console login page, not past it. Low. |
 | T13 | Suppression list loss or corruption | X7, X6 | Postgres system of record, permanent entries, backups + PITR, check on write and on send, restore drill | D4, D12 | Low. |
 | T14 | **Unexpected charges** breaking the USD 0 ceiling: a free tier ends, a resource is created outside Always Free, or an LLM account is added with billing | X6, X7 | Always-Free-only OCI tenancy; no payment method on GitHub; OCI budget alert at USD 0.01; `free-tier` tag on every resource; monthly billing review; when an LLM is added (DECISIONS #16), application daily/per-campaign hard stops | D1, D2, D7 | A provider changes its free-tier terms. Detected at the monthly review; owner decides. Low. |
 | T15 | SSRF from the research fetcher into cloud metadata or the private network | X1 | Egress-proxy denies private ranges and metadata IPs, caps redirects, allowlists protocols | D8 | Low. |
@@ -72,9 +72,9 @@ Defects in the starter files, recorded here so they are fixed by the owning phas
 | F3 | `emergency-stop.sh` stops the scheduler before the workers; workers get a 120 s graceful drain during an *emergency*; the api and publishing path are not halted | High | D6 |
 | F4 | CI `gitleaks detect --no-git` scans only the working tree, not history | High | D9 |
 | F5 | CI grants `packages: write` and `id-token: write` workflow-wide, including to pull-request jobs | Medium | D9 |
-| F6 | `.env.example` is missing `REDIS_PASSWORD` and `CLOUDFLARE_TUNNEL_TOKEN` | Medium | D5 |
+| F6 | `.env.example` is missing `REDIS_PASSWORD`; `CLOUDFLARE_TUNNEL_TOKEN` is now obsolete (DECISIONS #25) and must be removed | Medium | D5 |
 | F7 | Redis started with `--bind 0.0.0.0` (acceptable only because no port is published; must be proven in D4) | Low | D4 |
-| F8 | `cloudflare/cloudflared:latest` and unpinned base images in compose | Medium | D3, D6 |
+| F8 | `cloudflare/cloudflared:latest` (to be removed per DECISIONS #25) and unpinned base images in compose | Medium | D3, D6 |
 | F9 | Draft-only gateway cannot read replies; D10 requires reply handling | Medium | D10, D12 |
 | F10 | The only marketable product has empty `repo_path` and `evidence_root`; `site_repo` is empty | High (blocks content) | D1 + build phase 2 |
 | F11 | `.gitignore` ignores `secrets/`; SOPS files placed there could never be committed | Low | D5 (use `config/sops/`) |

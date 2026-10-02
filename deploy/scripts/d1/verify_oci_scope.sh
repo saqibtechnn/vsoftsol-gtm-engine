@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # D1 verification: OCI machine identities are confined to the `vge` compartment (vge-tofu) or
 # the backup bucket (vge-backup). Denial checks are reads at tenancy scope, so a wrongly-broad
-# policy is detected without creating anything.
+# policy is detected without creating anything. Exception: check 7 must attempt a real bastion
+# session create; if that wrongly succeeds, the script deletes the session it created.
 #
 # Inputs (env):
 #   OCI_CLI_PROFILE       profile in ~/.oci/config for the identity under test (e.g. VGE_TOFU)
@@ -9,6 +10,8 @@
 #   OCI_VGE_COMPARTMENT   OCID of the `vge` compartment
 #   OCI_IDENTITY          vge-tofu | vge-backup
 #   OCI_BACKUP_BUCKET     bucket name (vge-backup only)
+#   OCI_BASTION_ID        bastion OCID (vge-tofu; exists from D2). Unset before D2 -> check 7 reported NOT RUN, exit 1
+#   OCI_HOST_PRIVATE_IP   host private IP (vge-tofu, with OCI_BASTION_ID)
 # Requires: oci CLI, jq. Run in Codespaces.
 set -euo pipefail
 
@@ -41,6 +44,20 @@ case "$OCI_IDENTITY" in
     run "4 list IAM users"                           denied -- iam user list -c "$OCI_TENANCY_OCID"
     run "5 list IAM policies at root"                denied -- iam policy list -c "$OCI_TENANCY_OCID"
     run "6 list budgets"                             denied -- budgets budget list -c "$OCI_TENANCY_OCID"
+    # DECISIONS #25: the provisioning identity may build the bastion but must not open a session into the host.
+    if [[ -n "${OCI_BASTION_ID:-}" && -n "${OCI_HOST_PRIVATE_IP:-}" ]]; then
+      KEYDIR=$(mktemp -d); trap 'rm -rf "$KEYDIR"' EXIT
+      ssh-keygen -q -t ed25519 -N "" -f "$KEYDIR/k"
+      run "7 create bastion session denied"           denied -- bastion session create-port-forwarding \
+        --bastion-id "$OCI_BASTION_ID" --target-private-ip "$OCI_HOST_PRIVATE_IP" --target-port 443 \
+        --ssh-public-key-file "$KEYDIR/k.pub" --session-ttl 1800 --display-name d1-scope-test
+      # If the denial failed, a session now exists: delete it so the test leaves nothing behind.
+      for sid in $(oci --profile "$OCI_CLI_PROFILE" bastion session list --bastion-id "$OCI_BASTION_ID" --display-name d1-scope-test --query "data[?\"lifecycle-state\"=='ACTIVE'].id" --raw-output 2>/dev/null | jq -r ".[]?" 2>/dev/null); do
+        echo "cleanup: deleting session created by failed check 7"; oci --profile "$OCI_CLI_PROFILE" bastion session delete --session-id "$sid" --force >/dev/null || true
+      done
+    else
+      echo "NOT RUN  7 create bastion session denied (OCI_BASTION_ID/OCI_HOST_PRIVATE_IP unset; bastion is built in D2)"; FAILS=$((FAILS+1))
+    fi
     ;;
   vge-backup)
     [[ -n "${OCI_BACKUP_BUCKET:-}" ]] || die "OCI_BACKUP_BUCKET is not set"

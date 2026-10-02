@@ -19,10 +19,10 @@ Prepared once in D1 (runbook `D1_ACCOUNT_SETUP.md` §6), held offline, separate 
 |---|---|---|
 | K1 | GitHub recovery codes for `saqibtechnn` | D1 |
 | K2 | OCI tenancy admin MFA recovery: second registered TOTP device or recovery path documented by Oracle for the tenancy | D1 |
-| K3 | Cloudflare 2FA backup codes | D1 (once account is in use) |
+| K3 | Cloudflare 2FA backup codes (only if Cloudflare hosts DNS) | D1 |
 | K4 | Vercel recovery codes (if Vercel MFA enabled) | D1 |
 | K5 | Sealed copy of the production age key | D5 |
-| K6 | Emergency SSH: OCI Cloud Shell / instance console connection procedure (no standing SSH key) | D2 |
+| K6 | Host and console access when Bastion is unavailable: OCI instance console connection procedure (serial console via OCI login + MFA; no standing SSH key). Normal console path is an OCI Bastion session (DECISIONS #25) | D2 |
 | K7 | Owner release-signing key backup | D6 |
 
 Storage: printed, in a sealed tamper-evident envelope, with the seal number written in `DEPLOY_LOG.md`. A broken seal = the kit was used.
@@ -59,7 +59,7 @@ Storage: printed, in a sealed tamper-evident envelope, with the seal number writ
    - **Expected result:** each revoked credential returns 401/NotAuthenticated on its next use.
    - **If it differs:** block the identity at the next level up (uninstall the App, block the OCI user, delete the tunnel).
 5. Site defaced or a bad merge to `main`: revert via a PR on `saqibtechnn/vsoftsol-website` and merge with the admin bypass (the ruleset permits bypass **only through a PR**). Vercel redeploys `main`. If speed matters more: Vercel → project → *Deployments* → previous good deployment → *Instant Rollback*.
-6. Host access lost (D2+): use K6 (OCI console connection). Never open an inbound port to get in.
+6. Console unreachable (D2+): first try a new Bastion session (sessions expire after 3 h). If the Bastion service itself is down, use K6 (instance console connection). Never add a public inbound rule to get in.
 
 ### Step 4 — Stabilise
 7. Rotate every credential the incident might have touched, not only the one you know about.

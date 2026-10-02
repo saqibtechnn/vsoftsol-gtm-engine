@@ -19,13 +19,13 @@ Decide and record who and what can touch VGE before anything exists to touch: on
 | 2 | Separate service identities per integration | §3 below | Designed; owner creates |
 | 3 | GitHub branch protection, signed commits, env protection | §4 below, `ops/github/site-main-ruleset.json`, `deploy/scripts/d1/apply_site_ruleset.sh` | Site repo: **applied 2026-10-02** (ruleset id 24366860). VGE repo: decided public (DECISIONS #24); applied when the repo is created |
 | 4 | Least-privilege tokens | `deploy/docs/TOKEN_INVENTORY.md` | Every row designed; none created yet |
-| 5 | Cloudflare access policy + Zero Trust group | §5 below | **BLOCKED** — DECISIONS #25 OPEN (§5.1) |
+| 5 | Console access policy (was: Cloudflare Zero Trust) | §5 below | **Superseded by DECISIONS #25 (OCI Bastion)**; IAM policy + bastion built as code in D2 |
 | 6 | Token inventory | `deploy/docs/TOKEN_INVENTORY.md` | Written |
 | 7 | Break-glass runbook | `deploy/runbooks/BREAK_GLASS.md` | Written; not yet executed |
 
 ### Risks
 - **R1 — Single operator.** The owner is account holder, approver, reviewer and break-glass holder. No control here can stop the owner; controls here stop *everything else* (VGE, CI, a stolen token) and make owner actions *visible*.
-- **R2 — Free-plan feature gaps.** GitHub Free has no branch protection on private repos; Cloudflare Zero Trust Free needs a card on file. Each is a decision for the owner, not a workaround for Claude.
+- **R2 — Free-plan feature gaps.** GitHub Free has no branch protection on private repos; Cloudflare Zero Trust Free needs a card on file. Both were put to the owner and decided (DECISIONS #24, #25).
 - **R3 — Operator workstation token.** The GitHub CLI on the owner's PC holds an OAuth token with `repo` scope over **every** repo of the account (observed 2026-10-02, §6). It is outside the system path but is the broadest credential in reach of Claude Code sessions.
 - **R4 — Vercel Hobby terms.** The site deploys from a personal Vercel account (`vercel[bot]` deployments, homepage `vsoftsol-website.vercel.app`). If that account is on Hobby, Vercel's terms restrict Hobby to non-commercial use, and vsoftsol.com is commercial. Plan not confirmed: **OPEN**.
 
@@ -55,8 +55,9 @@ Principle: **humans authenticate as themselves with MFA; machines authenticate a
 | GitHub | `saqibtechnn`, MFA | **GitHub App `vge-site-bot`** (owned by `saqibtechnn`), installed on the site repo only | Apps act as themselves (`vge-site-bot[bot]`), get 1-hour installation tokens, per-repo install, per-permission scopes. A machine *user* account would be a second personal-style login with its own password and MFA to guard |
 | GitHub (CI) | — | Actions `GITHUB_TOKEN` (per-job, auto-expiring) for GHCR push; cosign keyless via OIDC | No long-lived PAT exists for CI |
 | OCI | Tenancy admin (owner), MFA | IAM user `vge-tofu` (API key only, no console password) in group `vge-provisioners`; IAM user `vge-backup` (customer secret key only) in group `vge-backup-writers` | Separates "can build infrastructure" (used from Codespaces only during D2) from "can write backups" (on the host forever) |
+| OCI (console access) | Owner via Bastion session, MFA | none — per-session ephemeral SSH key on the owner device | DECISIONS #25 |
 | OCI (host) | — | **Instance principal** via dynamic group `vge-prod-host` if the host needs OCI API access | No key on disk at all; preferred over `vge-backup` if WAL-G supports it in D4 |
-| Cloudflare | Owner, MFA | **Account-owned API token** `vge-tofu-dns` (DNS edit on one zone, Tunnel edit) + tunnel token `vge-prod-tunnel` | Account-owned tokens are not tied to the owner's user and survive a change of user |
+| Cloudflare (DNS only, if A6) | Owner, MFA | **Account-owned API token** `vge-tofu-dns` (DNS edit on one zone). No tunnel (DECISIONS #25) | Account-owned tokens are not tied to the owner's user and survive a change of user |
 | Vercel | Owner | **OPEN** — project-scoped token `vge-vercel-preview-read` only if VGE needs preview status | GitHub check status on the PR may make a Vercel token unnecessary (fewer credentials) |
 | Email | Owner hand-sends | none (DECISIONS #7) | Draft-only |
 | LLM | — | none (DECISIONS #16) | Deferred |
@@ -94,22 +95,25 @@ The VGE repo has no remote (A2). If it is created **private** on GitHub Free, ru
 ### 4.3 Signed commits
 `required_signatures` on the site repo is enforced by GitHub. For this repo (VGE), no git identity is configured on this PC (owner rule); commits are made only after the owner sets identity and signing. Owner steps: `D1_ACCOUNT_SETUP.md` §4.
 
-## 5. Cloudflare access
+## 5. Console access — OCI Bastion (DECISIONS #25, owner 2026-10-02)
 
-### 5.1 Zero Trust organisation — **BLOCKED (DECISIONS #25 OPEN)**
-Owner chose option B (Tailscale) on 2026-10-02. Rejected on verification: the Tailscale Personal plan is "only suitable for non-commercial use", and business email domains are enrolled in a trial ([tailscale.com/pricing](https://tailscale.com/pricing), retrieved 2026-10-02); the cheapest business plan is USD 8/user/month. Re-asked with a USD 0, no-card option: **OCI Bastion** port-forwarding sessions (free on all OCI accounts, up to 5 bastions on Always Free; [Oracle blog](https://blogs.oracle.com/developers/how-to-securely-connect-to-private-resources-for-free-via-the-oci-bastion-service)), which keeps zero public inbound ports and uses the owner's MFA-protected OCI login.
+Deliverable 5 asks for a Cloudflare access policy and Zero Trust group. DECISIONS #25 (COST-DRIVEN) **supersedes** it. Cloudflare Zero Trust Free needs a card on file ([Cloudflare community](https://community.cloudflare.com/t/choose-the-zero-trust-free-plan-with-no-payment-method/471877), retrieved 2026-10-02). The owner's first alternative, Tailscale, was rejected because its free Personal plan is "only suitable for non-commercial use" ([tailscale.com/pricing](https://tailscale.com/pricing), retrieved 2026-10-02). OCI Bastion is free on all OCI accounts ([Oracle](https://blogs.oracle.com/developers/how-to-securely-connect-to-private-resources-for-free-via-the-oci-bastion-service), retrieved 2026-10-02). The same controls (who may reach the console, and with what proof) move into OCI IAM:
 
-Original analysis:
-Cloudflare Zero Trust Free (≤ 50 users) requires a payment method on file even at USD 0 ([Cloudflare community](https://community.cloudflare.com/t/choose-the-zero-trust-free-plan-with-no-payment-method/471877), retrieved 2026-10-02). Without it there is no Access, and DECISIONS #5 (console behind Access) fails. Options (none chosen):
-- **A.** Add a card to Cloudflare only; monthly billing check added to `SIZING_AND_COST.md` §4. Charges are possible only by actively selecting a paid plan or exceeding 50 seats.
-- **B.** Replace Access with another free private-access path (e.g. Tailscale): reverses DECISIONS #5, needs a D0 amendment first (CLAUDE.md §2.6).
+| Cloudflare design (old) | OCI Bastion equivalent |
+|---|---|
+| Zero Trust group `vge-operators` | OCI IAM: only the tenancy **Administrators** group (owner) may `manage bastion-session`; no other group is granted it |
+| Access app `console.<domain>`, MFA via IdP | Owner signs in to OCI (MFA enforced, D1_ACCOUNT_SETUP §2.2) → creates a port-forwarding session |
+| Session 8 h | Bastion `max_session_ttl_in_seconds = 10800` (3 h, the service maximum) |
+| Implicit deny | Security list: **no** ingress from `0.0.0.0/0`; TCP 443 only from the bastion's private endpoint IP |
+| Access logs | OCI Audit records every `CreateSession` (365-day retention) |
+| `hooks.` bypass | **Removed**: no webhook ingress (draft-only email, #7) |
 
-### 5.2 Design once unblocked
-- Account members: owner only, role *Super Administrator*, MFA enforced at account level (*Manage Account → Members → Enforce 2FA*).
-- Zero Trust group `vge-operators`: include = emails `{owner address}`; require = identity provider GitHub (`saqibtechnn`) **and** one-time PIN fallback disabled.
-- Access application `console.<domain>`: allow `vge-operators`, session 8 h, require purpose justification off, block everyone else (implicit deny).
-- `hooks.<domain>`: Access bypass (webhooks are authenticated by HMAC in D8), path-limited.
-- Audit: Cloudflare account audit log is on by default; Access authentication logs retained per plan.
+Design (built as code in D2, `infra-engineer`):
+- Bastion `vge-bastion` in compartment `vge`, target subnet = host subnet, `client_cidr_block_allow_list` = owner's public IP /32 if it is static, otherwise `0.0.0.0/0` (session creation still needs OCI login + MFA and a fresh SSH key). **OPEN:** is the owner's IP static?
+- `caddy` binds to the host private IP only. Console reached as `ssh -i <session key> -N -L 8443:<host-private-ip>:443 -p 22 <session-ocid>@host.bastion.ca-toronto-1.oci.oraclecloud.com`, then `https://localhost:8443`.
+- **The provisioning identity must not open sessions.** `vge-provisioners` policy: `Allow group vge-provisioners to manage all-resources in compartment vge where request.permission != 'BASTION_SESSION_CREATE'`. The D2 scope test (`verify_oci_scope.sh` check 7) validates the condition syntax. If OCI rejects it, stop and redesign rather than drop the condition.
+- Staging: Codespaces private port forwarding (GitHub login + MFA); never made public.
+- Cloudflare: if vsoftsol.com DNS is on Cloudflare (OPEN A6), the account keeps owner-only membership with enforced 2FA, and its only token is a DNS-edit token (TOKEN_INVENTORY #7a). Otherwise Cloudflare is out of the system path entirely.
 
 ## 6. Observed state at D1 start (2026-10-02, read-only)
 ```
@@ -135,5 +139,6 @@ $ gh api user --jq '{login,two_factor_authentication}'
 |---|---|---|---|
 | GitHub (personal account) | Security log (`/settings/security-log`); ruleset bypass insights | On | None needed; monthly review |
 | OCI | Audit service, 365-day retention | On, cannot be disabled | Confirm retention in runbook §2 |
-| Cloudflare | Account audit log; Access logs | On | Review monthly once unblocked |
+| OCI Bastion | Audit `CreateSession` / `DeleteSession` events | On (part of OCI Audit) | Monthly review: every session matches an owner console use |
+| Cloudflare (if DNS host) | Account audit log | On | Monthly review |
 | Vercel | Activity log | On | OPEN (A8) |

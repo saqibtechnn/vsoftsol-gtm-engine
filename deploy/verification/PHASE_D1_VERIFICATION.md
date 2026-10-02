@@ -4,7 +4,7 @@
 **Executed by:** Claude Code (main thread; `security-engineer` role performed inline, as in D0)
 **Date:** 2026-10-02
 **Environment(s):** production GitHub repo `saqibtechnn/vsoftsol-website` (ruleset applied 2026-10-02 on owner confirmation). Nothing else provisioned.
-**Result:** **BLOCKED** — design, inventory, runbooks and scripts complete; site `main` ruleset applied; no credential created; console access decision (DECISIONS #25) OPEN.
+**Result:** **BLOCKED** — design, inventory, runbooks and scripts complete; site `main` ruleset applied; owner decisions #24 (VGE public) and #25 (OCI Bastion) recorded; **no credential created and no account step done yet** (owner-executed, `D1_ACCOUNT_SETUP.md`).
 
 ---
 
@@ -21,7 +21,7 @@
 - Site ruleset: applied after the owner's explicit confirmation (2026-10-02). VGE repo ruleset: the repo does not exist yet.
 - Anthropic key (#16), email provider key (#7), social credentials (A7): N/A by decision.
 - VGE repo protection: BLOCKED (§3, D1-B1).
-- Cloudflare Zero Trust: BLOCKED (§3, D1-B2).
+- Cloudflare Zero Trust group and Access policy (deliverable 5): **superseded** by DECISIONS #25 (OCI Bastion, COST-DRIVEN). The equivalent IAM controls are designed (IDENTITY_AND_ACCESS §5); the bastion itself is infrastructure and is built as code in D2.
 
 ## 3. Decisions made
 | Decision | Options considered | Chosen | Rationale | Reversible? |
@@ -32,7 +32,7 @@
 | Vercel token | Project-scoped token; none | None unless needed | PR commit status may suffice; fewer credentials | Yes |
 | VGE repo visibility | Public / Pro USD 4 / private + accepted gap | **Public** (owner 2026-10-02, DECISIONS #24) | Free rulesets; threat T26 added | Only before first push |
 | D0 per-row sign-off | Gate edit suffices / sign each row | Gate edit suffices (owner 2026-10-02) | DECISIONS.md header updated | Yes |
-| Console private access | Cloudflare card / Tailscale / OCI Bastion | **OPEN** — owner chose Tailscale; rejected (free plan non-commercial only); re-asked | DECISIONS #25 | — |
+| Console private access | Cloudflare card / Tailscale / OCI Bastion | **OCI Bastion** (owner 2026-10-02, DECISIONS #25). Tailscale (first choice) rejected: free plan is non-commercial only | USD 0, no card, zero public inbound; amends ARCHITECTURE, ENVIRONMENTS, THREAT_MODEL T12/F6/F8, SIZING | Yes (card on Cloudflare restores #5) |
 
 ## 4. Verification performed
 
@@ -112,7 +112,7 @@ $ gh api user --jq '{login,two_factor_authentication}'
 | ID | Severity | Description | Status | Fix / accepted risk |
 |---|---|---|---|---|
 | D1-B1 | High | VGE repo: GitHub Free has no branch protection on private repos | **Resolved** — public (DECISIONS #24) | Apply ruleset when the repo exists |
-| D1-B2 | High | Cloudflare Zero Trust Free requires a payment method; the owner's Tailscale choice breaches Tailscale's non-commercial free-plan terms | **BLOCKED — DECISIONS #25** | Card on Cloudflare / OCI Bastion / Tailscale USD 8 |
+| D1-B2 | High | Cloudflare Zero Trust Free requires a payment method; Tailscale free plan non-commercial only | **Resolved** — OCI Bastion (DECISIONS #25); D0 docs amended | Provisioning identity denied `BASTION_SESSION_CREATE` (verified in D2, check 7) |
 | D1-F1 | High | Site repo `main` was unprotected | **Fixed** 2026-10-02 (ruleset 24366860); denial test pending owner run | — |
 | D1-F2 | Medium | Operator `gh` token has `repo` scope on all repos | Open | Owner decision (TOKEN_INVENTORY §C) |
 | D1-F3 | Medium | Site may be on Vercel Hobby (non-commercial terms) for a commercial site | OPEN (A8) | Owner confirms plan |
@@ -131,15 +131,15 @@ $ gh api user --jq '{login,two_factor_authentication}'
 | Broad operator token | Medium | High | Narrow after D1 | — OPEN |
 
 ## 9. Documentation produced or updated
-IDENTITY_AND_ACCESS.md, TOKEN_INVENTORY.md, BREAK_GLASS.md, D1_ACCOUNT_SETUP.md — none yet followed end to end (they need the owner).
+IDENTITY_AND_ACCESS.md, TOKEN_INVENTORY.md, BREAK_GLASS.md, D1_ACCOUNT_SETUP.md — none yet followed end to end (they need the owner). D0 docs amended for DECISIONS #24/#25: DECISIONS.md, ARCHITECTURE.md, ENVIRONMENTS.md, THREAT_MODEL.md (T12, T26, F6, F8), SIZING_AND_COST.md.
 
 ## 10. Rollback path
 `git revert` the D1 commit. No external state was changed in this session.
 
 ## 11. Recommendation to the gate
 **BLOCKED — do not mark PASS.** To unblock:
-1. Owner decides DECISIONS #25 (console access).
+1. Owner answers remaining OPEN inputs: VGE repo name (A2), product repos (A3), OCI tenancy region/no-card (A4), MFA (A5), DNS host (A6), social platforms (A7), Vercel plan (A8), static IP for the bastion allowlist.
 2. Owner runs `deploy/scripts/d1/verify_site_push_blocked.sh saqibtechnn/vsoftsol-website --confirm` and pastes the output.
-3. Owner answers A2–A8 and executes `D1_ACCOUNT_SETUP.md`.
-4. Scope, revocation and push tests run; real output pasted here; break-glass drill recorded.
+3. Owner executes `D1_ACCOUNT_SETUP.md`, including creating the public VGE repo; Claude then applies `protect-main` to it (on confirmation) and enables secret scanning + push protection.
+4. Scope, revocation and push tests run; real output pasted here; break-glass drill recorded. `verify_oci_scope.sh` check 7 (bastion session denial) cannot run until the bastion exists, so it is carried as a **D2 exit criterion**; D1 may pass with that as a stated condition.
 Gate row in `DEPLOY_GATES.md` is left for the owner to edit (status suggestion: BLOCKED). No tag applied.

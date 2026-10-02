@@ -3,22 +3,23 @@
 One row per phase. A phase is not started until the previous row reads PASS.
 Sign-off is by the owner, not by Claude Code.
 
-| Phase | Title | Status | Verified by | Owner sign-off | Date | Tag | Notes |
-|---|---|---|---|---|---|---|---|
-| D0 | Architecture & Readiness Baseline | IN PROGRESS — awaiting owner sign-off | Claude Code (self-check; see PHASE_D0_VERIFICATION.md) | | 2026-09-27 | deploy-v0.0.0 (applied on sign-off) | Recommendation: PASS WITH CONDITIONS C2, C4–C8 (USD 0 revision 2026-09-30). Owner approved in chat 2026-09-30; owner to enter written sign-off |
-| D1 | Accounts, Identity & Access | NOT STARTED | | | | deploy-v0.1.0 | |
-| D2 | IaC & Host Provisioning | NOT STARTED | | | | deploy-v0.2.0 | |
-| D3 | Container & Supply Chain | NOT STARTED | | | | deploy-v0.3.0 | |
-| D4 | Data, Backup & Restore | NOT STARTED | | | | deploy-v0.4.0 | |
-| D5 | Secrets & Configuration | NOT STARTED | | | | deploy-v0.5.0 | |
-| D6 | Deployment & Release Mechanics | NOT STARTED | | | | deploy-v0.6.0 | |
-| D7 | Observability & Alerting | NOT STARTED | | | | deploy-v0.7.0 | |
-| D8 | Security & Agentic-Risk Controls | NOT STARTED | | | | deploy-v0.8.0 | |
-| D9 | CI/CD Pipeline | NOT STARTED | | | | deploy-v0.9.0 | |
-| D10 | Staging Rehearsal | NOT STARTED | | | | deploy-v0.10.0 | |
-| D11 | Resilience, Capacity & DR | NOT STARTED | | | | deploy-v0.11.0 | |
-| D12 | Deliverability & Compliance | NOT STARTED | | | | deploy-v0.12.0 | |
-| D13 | Cutover & Go-Live | NOT STARTED | | | | deploy-v0.13.0 | |
-| D14 | Final Production Readiness | NOT STARTED | | | | v1.0.0-prod | |
+|Phase|Title|Status|Verified by|Owner sign-off|Date|Tag|Notes|
+|-|-|-|-|-|-|-|-|
+|D0|Architecture \& Readiness Baseline|PASS WITH CONDITIONS|Claude Code (self-check; see PHASE\_D0\_VERIFICATION.md)||2026-09-27|deploy-v0.0.0 (applied on sign-off)|Recommendation: PASS WITH CONDITIONS C2, C4–C8 (USD 0 revision 2026-09-30). Owner approved in chat 2026-09-30; owner to enter written sign-off|
+|D1|Accounts, Identity \& Access|NOT STARTED||||deploy-v0.1.0||
+|D2|IaC \& Host Provisioning|NOT STARTED||||deploy-v0.2.0||
+|D3|Container \& Supply Chain|NOT STARTED||||deploy-v0.3.0||
+|D4|Data, Backup \& Restore|NOT STARTED||||deploy-v0.4.0||
+|D5|Secrets \& Configuration|NOT STARTED||||deploy-v0.5.0||
+|D6|Deployment \& Release Mechanics|NOT STARTED||||deploy-v0.6.0||
+|D7|Observability \& Alerting|NOT STARTED||||deploy-v0.7.0||
+|D8|Security \& Agentic-Risk Controls|NOT STARTED||||deploy-v0.8.0||
+|D9|CI/CD Pipeline|NOT STARTED||||deploy-v0.9.0||
+|D10|Staging Rehearsal|NOT STARTED||||deploy-v0.10.0||
+|D11|Resilience, Capacity \& DR|NOT STARTED||||deploy-v0.11.0||
+|D12|Deliverability \& Compliance|NOT STARTED||||deploy-v0.12.0||
+|D13|Cutover \& Go-Live|NOT STARTED||||deploy-v0.13.0||
+|D14|Final Production Readiness|NOT STARTED||||v1.0.0-prod||
 
 Status values: NOT STARTED / IN PROGRESS / BLOCKED / FAILED / PASS WITH CONDITIONS / PASS
+

@@ -1,7 +1,7 @@
 # Deployment Decisions
 
 Produced in Phase D0 (2026-09-27); revised 2026-09-28 (near-free hosting) and **2026-09-30: owner requires USD 0 total**. The AI provider is deferred (#16), dev and staging run in GitHub Codespaces (#13, #22), and outbound is draft-only from a vsoftsol.com subdomain (#6, #7).
-Every row needs owner sign-off before D1 begins.
+Owner ruling 2026-10-02: the owner's D0 gate status edit (`DEPLOY_GATES.md`, commit `9bf6f12`) signs off every D0 row; per-row initials are optional.
 Recommended defaults come from `deploy/plan/DEPLOYMENT_PLAN.md` §2. Where Claude Code disagrees with the default, the row says **AMENDED** or **DISAGREE** and why. Rows marked **COST-DRIVEN** depart from the plan because of the owner's budget choice and carry a written trade-off.
 
 Sign-off column: `PENDING` until the owner signs. `OPEN` means an owner input is still missing.
@@ -38,6 +38,13 @@ Sign-off column: `PENDING` until the owner signs. `OPEN` means an owner input is
 | 19 | Production release approval | **Owner-signed release manifest**: CI builds, signs (cosign keyless) and publishes images to staging. For production, the owner signs a release manifest (version + digests) with a personal key held off-CI (YubiKey-backed or offline age/cosign key). A pull-based deploy agent on the host deploys **only** manifests carrying a valid owner signature. Every approval is logged in `DEPLOY_LOG.md`. | Replaces GitHub environment protection (#9). Stronger in one respect: a compromised CI pipeline cannot deploy to production. | Reinstate GitHub Team environment protection. | PENDING |
 | 20 | CPU architecture | **arm64** (Ampere A1); images built multi-arch (`linux/arm64` required, `linux/amd64` for dev and CI parity) | Always Free compute is Arm. D3 must prove every dependency builds and scans on arm64. | Return to amd64 with a provider change (#1). | PENDING |
 | 21 | Idle-reclaim guard | Monitor A1 CPU, network and memory 95th percentiles; alert if all three drop toward 20%. **No synthetic load is generated to game the policy.** If reclaim risk becomes real, move to paid capacity. | Oracle may reclaim idle Always Free instances. The production stack (Postgres + workers + console) is expected to keep memory well above 20% of 12 GB, which alone rules out reclamation. Generating artificial load would breach the spirit of Oracle's terms. | Upgrade the instance to paid (≈USD 27.74/month for 2 OCPU / 12 GB: 730 h × USD 0.038). | PENDING |
+
+### Added in D1
+
+| # | Decision | Chosen | Rationale | Reversal path | Signed off |
+|---|---|---|---|---|---|
+| 24 | VGE repository visibility | **Public** GitHub repo under `saqibtechnn` (name OPEN), protected by the same `protect-main` ruleset as the site repo | GitHub Free offers rulesets/branch protection only on public repos (D1-B1). Public keeps USD 0 and meets D1 deliverable 3. Consequences: control design is visible (THREAT_MODEL T26); only SOPS ciphertext is ever committed (#10); GitHub secret scanning + push protection are free on public repos and must be enabled. | Make private + GitHub Pro (USD 4/month). History stays public once pushed. | Owner 2026-10-02 |
+| 25 | Console private access (amends #5) | **OPEN** — owner chose Tailscale 2026-10-02, but the Tailscale Personal plan is "only suitable for non-commercial use" (tailscale.com/pricing, retrieved 2026-10-02), and its cheapest business plan is USD 8/user/month. Re-asked. | Cloudflare Zero Trust Free requires a card on file (D1-B2). | — | OPEN |
 
 ## Open questions for the owner
 - Monthly budget ceiling: **USD 0** (owner, 2026-09-30) — DECISIONS #23.

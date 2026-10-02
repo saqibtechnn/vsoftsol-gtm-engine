@@ -17,9 +17,9 @@ Decide and record who and what can touch VGE before anything exists to touch: on
 |---|---|---|---|
 | 1 | Cloud account, MFA, billing alert at ceiling | `deploy/runbooks/D1_ACCOUNT_SETUP.md` §2 | Runbook written; owner executes (Claude may not log in) |
 | 2 | Separate service identities per integration | §3 below | Designed; owner creates |
-| 3 | GitHub branch protection, signed commits, env protection | §4 below, `ops/github/site-main-ruleset.json`, `deploy/scripts/d1/apply_site_ruleset.sh` | Site repo: ready to apply on owner confirmation. VGE repo: **BLOCKED** (§4.2) |
+| 3 | GitHub branch protection, signed commits, env protection | §4 below, `ops/github/site-main-ruleset.json`, `deploy/scripts/d1/apply_site_ruleset.sh` | Site repo: **applied 2026-10-02** (ruleset id 24366860). VGE repo: decided public (DECISIONS #24); applied when the repo is created |
 | 4 | Least-privilege tokens | `deploy/docs/TOKEN_INVENTORY.md` | Every row designed; none created yet |
-| 5 | Cloudflare access policy + Zero Trust group | §5 below | **BLOCKED** (§5.1) |
+| 5 | Cloudflare access policy + Zero Trust group | §5 below | **BLOCKED** — DECISIONS #25 OPEN (§5.1) |
 | 6 | Token inventory | `deploy/docs/TOKEN_INVENTORY.md` | Written |
 | 7 | Break-glass runbook | `deploy/runbooks/BREAK_GLASS.md` | Written; not yet executed |
 
@@ -32,8 +32,8 @@ Decide and record who and what can touch VGE before anything exists to touch: on
 ### Assumptions to confirm (asked 2026-10-02; owner replied "proceed" without answering)
 | # | Assumption | Status |
 |---|---|---|
-| A1 | Site repo is `saqibtechnn/vsoftsol-website` | **Observed, not confirmed by owner.** It is the only repo described as "vsoftsol.com marketing site" (`gh repo list`, 2026-10-02) |
-| A2 | VGE repo GitHub location | **OPEN** — this repo has no git remote |
+| A1 | Site repo is `saqibtechnn/vsoftsol-website` | **Confirmed** by owner 2026-10-02 (approved applying the ruleset to it) |
+| A2 | VGE repo GitHub location | **Public** under `saqibtechnn` (DECISIONS #24); repo name **OPEN** — this repo has no git remote |
 | A3 | Product repos read by VGE | **OPEN** — candidates seen in `gh repo list`: `agentic-enhancement-platform` (private), `vsoftsol-syslog-manager`, `vSoft-Baclup-Updates`, `VsoftNetwork-Monitoring`, `Updates` (public). Not assumed |
 | A4 | OCI tenancy exists, home region `ca-toronto-1`, no payment method | **OPEN** |
 | A5 | MFA on GitHub, OCI, Cloudflare | **OPEN** — cannot be read with the current GitHub token (§6) |
@@ -84,7 +84,8 @@ Ruleset `protect-main` (`ops/github/site-main-ruleset.json`), target `~DEFAULT_B
 
 Environment protection rules: the site deploys through Vercel's GitHub integration, not GitHub Actions environments, so there is no GitHub environment to protect. The production gate for the site is the PR approval above.
 
-### 4.2 VGE repo — **BLOCKED**
+### 4.2 VGE repo — decided: public (DECISIONS #24, owner 2026-10-02)
+The same `protect-main` ruleset is applied with `apply_site_ruleset.sh <owner/vge-repo> --apply` once the repo exists, plus *Settings → Code security*: secret scanning and push protection **on** (THREAT_MODEL T26). Options as presented to the owner:
 The VGE repo has no remote (A2). If it is created **private** on GitHub Free, rulesets, branch protection and environment required-reviewers are unavailable ([GitHub plans](https://docs.github.com/en/get-started/learning-about-github/githubs-plans), retrieved 2026-10-02). Deliverable 3 cannot then be met. Options for the owner (none chosen):
 - **A.** VGE repo **public**: ruleset as §4.1. Cost USD 0. Exposes control design (not secrets — those are SOPS-encrypted per DECISIONS #10). Threat-model change needed.
 - **B.** GitHub Pro, USD 4/month: breaks DECISIONS #23.
@@ -95,7 +96,10 @@ The VGE repo has no remote (A2). If it is created **private** on GitHub Free, ru
 
 ## 5. Cloudflare access
 
-### 5.1 Zero Trust organisation — **BLOCKED**
+### 5.1 Zero Trust organisation — **BLOCKED (DECISIONS #25 OPEN)**
+Owner chose option B (Tailscale) on 2026-10-02. Rejected on verification: the Tailscale Personal plan is "only suitable for non-commercial use", and business email domains are enrolled in a trial ([tailscale.com/pricing](https://tailscale.com/pricing), retrieved 2026-10-02); the cheapest business plan is USD 8/user/month. Re-asked with a USD 0, no-card option: **OCI Bastion** port-forwarding sessions (free on all OCI accounts, up to 5 bastions on Always Free; [Oracle blog](https://blogs.oracle.com/developers/how-to-securely-connect-to-private-resources-for-free-via-the-oci-bastion-service)), which keeps zero public inbound ports and uses the owner's MFA-protected OCI login.
+
+Original analysis:
 Cloudflare Zero Trust Free (≤ 50 users) requires a payment method on file even at USD 0 ([Cloudflare community](https://community.cloudflare.com/t/choose-the-zero-trust-free-plan-with-no-payment-method/471877), retrieved 2026-10-02). Without it there is no Access, and DECISIONS #5 (console behind Access) fails. Options (none chosen):
 - **A.** Add a card to Cloudflare only; monthly billing check added to `SIZING_AND_COST.md` §4. Charges are possible only by actively selecting a paid plan or exceeding 50 seats.
 - **B.** Replace Access with another free private-access path (e.g. Tailscale): reverses DECISIONS #5, needs a D0 amendment first (CLAUDE.md §2.6).

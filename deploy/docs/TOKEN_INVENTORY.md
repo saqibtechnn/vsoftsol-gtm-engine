@@ -55,7 +55,7 @@ Scripts: `deploy/scripts/d1/`. Rows are filled with real output only.
 | 1 | 9 denials + token revocation (`verify_github_app_scope.sh`) | NOT RUN — credential not created | — |
 | 7a | 8 denials + single-zone visibility (`verify_cloudflare_token_scope.sh`) | NOT RUN — BLOCKED | — |
 | 10a | Root-compartment and IAM reads (`verify_oci_scope.sh`, `vge-tofu`) | NOT RUN — credential not created | — |
-| Site ruleset | Direct push to `main` (`verify_site_push_blocked.sh`) | NOT RUN — ruleset not applied (awaiting owner confirmation) | — |
+| Site ruleset | Direct push to `main` (`verify_site_push_blocked.sh`) | Ruleset applied 2026-10-02 (id 24366860; deletion, non_fast_forward, required_signatures, pull_request active on `main`). Push test **NOT RUN**: Claude Code permission classifier denied the live push; owner to run | PHASE_D1_VERIFICATION §4 |
 
 ## Revocation test record
 Each credential type gets one create → revoke → confirm-rejected cycle with a throwaway credential of the same type, before the real one is relied on.

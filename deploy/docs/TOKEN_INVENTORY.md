@@ -58,6 +58,7 @@ Scripts: `deploy/scripts/d1/`. Rows are filled with real output only.
 | 10a | Root-compartment and IAM reads (`verify_oci_scope.sh`, `vge-tofu`) | NOT RUN — credential not created | — |
 | 14 | Bastion session creation by `vge-tofu` denied (`verify_oci_scope.sh` check 7) | NOT RUN — OCI not set up | — |
 | Site ruleset | Direct push to `main` (`verify_site_push_blocked.sh`) | Ruleset applied 2026-10-02 (id 24366860; deletion, non_fast_forward, required_signatures, pull_request active on `main`). Push test **NOT RUN**: Claude Code permission classifier denied the live push; owner to run | PHASE_D1_VERIFICATION §4 |
+| VGE ruleset | Direct push to `main` of `saqibtechnn/vsoftsol-gtm-engine` | Ruleset applied 2026-10-03 (id 24418406), same four rules active. Push test **NOT RUN**; owner to run | PHASE_D1_VERIFICATION §4 |
 
 ## Revocation test record
 Each credential type gets one create → revoke → confirm-rejected cycle with a throwaway credential of the same type, before the real one is relied on.

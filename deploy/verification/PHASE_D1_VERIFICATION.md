@@ -87,6 +87,24 @@ Dry run. Re-run with --apply to make this change.
 ```
 - **Notes:** running `verify_site_push_blocked.sh ... --confirm` (which would have stopped at its "no active rules" guard before pushing) was denied by the Claude Code permission classifier as a production-deploy action. Not retried. The owner runs it after the ruleset is applied.
 
+### VGE repo protection (deliverable 3, DECISIONS #24), 2026-10-03
+- **Command(s) run and output:**
+```
+$ gh repo create saqibtechnn/vsoftsol-gtm-engine --public --description "..."
+https://github.com/saqibtechnn/vsoftsol-gtm-engine
+$ gh api -X PATCH repos/saqibtechnn/vsoftsol-gtm-engine  (security_and_analysis)  # before any push
+{"secret_scanning":{"status":"enabled"},"secret_scanning_push_protection":{"status":"enabled"}, ...}
+$ git push origin main:main ; git push origin deploy-v0.0.0
+ * [new branch]      main -> main
+ * [new tag]         deploy-v0.0.0 -> deploy-v0.0.0
+$ bash deploy/scripts/d1/apply_site_ruleset.sh saqibtechnn/vsoftsol-gtm-engine --apply
+{"bypass":[{"actor_id":5,"actor_type":"RepositoryRole","bypass_mode":"pull_request"}],"enforcement":"active","id":24418406,"name":"protect-main","rules":["deletion","non_fast_forward","required_signatures","pull_request"]}
+$ gh api repos/saqibtechnn/vsoftsol-gtm-engine/rules/branches/main --jq '[.[].type]'
+["deletion","non_fast_forward","required_signatures","pull_request"]
+```
+- **Result:** Control applied. Direct-push denial test on this repo: NOT RUN (same classifier restriction; owner runs `verify_site_push_blocked.sh saqibtechnn/vsoftsol-gtm-engine --confirm`).
+- **Notes:** existing commits are unsigned, so PRs into `main` must be **squash-merged** (GitHub signs the squash commit); a plain merge would carry unsigned commits and be rejected by `required_signatures`.
+
 ### Criterion: Confirm MFA cannot be bypassed on any account in the path
 - **Result:** **NOT RUN.** Cannot be read with the available token:
 ```
@@ -153,7 +171,7 @@ IDENTITY_AND_ACCESS.md, TOKEN_INVENTORY.md, BREAK_GLASS.md, D1_ACCOUNT_SETUP.md 
 ## 11. Recommendation to the gate
 **BLOCKED — do not mark PASS.** To unblock:
 1. Owner answers remaining OPEN inputs: product repos (A3), social platforms (A7), Vercel plan (A8), static IP for the bastion allowlist. Answered 2026-10-03: VGE repo `saqibtechnn/vsoftsol-gtm-engine` (A2), OCI Toronto/no card (A4, stated), MFA on all (A5, stated), DNS on Cloudflare (A6, confirmed by NS lookup). Owner-stated items still need the runbook evidence.
-2. Owner runs `deploy/scripts/d1/verify_site_push_blocked.sh saqibtechnn/vsoftsol-website --confirm` and pastes the output.
-3. Owner executes `D1_ACCOUNT_SETUP.md`, including creating the public VGE repo; Claude then applies `protect-main` to it (on confirmation) and enables secret scanning + push protection.
+2. Owner runs `deploy/scripts/d1/verify_site_push_blocked.sh <repo> --confirm` for **both** `saqibtechnn/vsoftsol-website` and `saqibtechnn/vsoftsol-gtm-engine` and pastes the output.
+3. Owner executes `D1_ACCOUNT_SETUP.md`. (VGE repo created, protected and push-protected on 2026-10-03.)
 4. Scope, revocation and push tests run; real output pasted here; break-glass drill recorded. `verify_oci_scope.sh` check 7 (bastion session denial) cannot run until the bastion exists, so it is carried as a **D2 exit criterion**; D1 may pass with that as a stated condition.
 Gate row in `DEPLOY_GATES.md` is left for the owner to edit (status suggestion: BLOCKED). No tag applied.

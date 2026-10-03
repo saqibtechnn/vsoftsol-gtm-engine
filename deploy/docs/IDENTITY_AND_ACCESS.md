@@ -17,7 +17,7 @@ Decide and record who and what can touch VGE before anything exists to touch: on
 |---|---|---|---|
 | 1 | Cloud account, MFA, billing alert at ceiling | `deploy/runbooks/D1_ACCOUNT_SETUP.md` §2 | Runbook written; owner executes (Claude may not log in) |
 | 2 | Separate service identities per integration | §3 below | Designed; owner creates |
-| 3 | GitHub branch protection, signed commits, env protection | §4 below, `ops/github/site-main-ruleset.json`, `deploy/scripts/d1/apply_site_ruleset.sh` | Site repo: **applied 2026-10-02** (ruleset id 24366860). VGE repo: decided public (DECISIONS #24); applied when the repo is created |
+| 3 | GitHub branch protection, signed commits, env protection | §4 below, `ops/github/site-main-ruleset.json`, `deploy/scripts/d1/apply_site_ruleset.sh` | Site repo: **applied 2026-10-02** (ruleset id 24366860). VGE repo `saqibtechnn/vsoftsol-gtm-engine` (public): **applied 2026-10-03** (ruleset id 24418406); secret scanning + push protection on |
 | 4 | Least-privilege tokens | `deploy/docs/TOKEN_INVENTORY.md` | Every row designed; none created yet |
 | 5 | Console access policy (was: Cloudflare Zero Trust) | §5 below | **Superseded by DECISIONS #25 (OCI Bastion)**; IAM policy + bastion built as code in D2 |
 | 6 | Token inventory | `deploy/docs/TOKEN_INVENTORY.md` | Written |
@@ -33,7 +33,7 @@ Decide and record who and what can touch VGE before anything exists to touch: on
 | # | Assumption | Status |
 |---|---|---|
 | A1 | Site repo is `saqibtechnn/vsoftsol-website` | **Confirmed** by owner 2026-10-02 (approved applying the ruleset to it) |
-| A2 | VGE repo GitHub location | `saqibtechnn/vsoftsol-gtm-engine`, public (owner 2026-10-03; DECISIONS #24). **Not yet created** (`gh api` 404, 2026-10-03) |
+| A2 | VGE repo GitHub location | `saqibtechnn/vsoftsol-gtm-engine`, public (owner 2026-10-03; DECISIONS #24). **Created 2026-10-03** by Claude Code on owner confirmation; `main` and tag `deploy-v0.0.0` pushed |
 | A3 | Product repos read by VGE | **OPEN** — candidates seen in `gh repo list`: `agentic-enhancement-platform` (private), `vsoftsol-syslog-manager`, `vSoft-Baclup-Updates`, `VsoftNetwork-Monitoring`, `Updates` (public). Not assumed |
 | A4 | OCI tenancy exists, home region `ca-toronto-1`, no payment method | **Owner-stated 2026-10-03**; screenshot evidence pending (D1_ACCOUNT_SETUP §2.1) |
 | A5 | MFA on GitHub, OCI, Cloudflare, Vercel | **Owner-stated 2026-10-03** (authenticator/security key on all); evidence pending (§1.1, §2.2, §3.1, §5.1). Not readable with the current GitHub token (§6) |
@@ -86,7 +86,7 @@ Ruleset `protect-main` (`ops/github/site-main-ruleset.json`), target `~DEFAULT_B
 Environment protection rules: the site deploys through Vercel's GitHub integration, not GitHub Actions environments, so there is no GitHub environment to protect. The production gate for the site is the PR approval above.
 
 ### 4.2 VGE repo — decided: public (DECISIONS #24, owner 2026-10-02)
-The same `protect-main` ruleset is applied with `apply_site_ruleset.sh <owner/vge-repo> --apply` once the repo exists, plus *Settings → Code security*: secret scanning and push protection **on** (THREAT_MODEL T26). Options as presented to the owner:
+Applied 2026-10-03 (ruleset id 24418406), plus *Settings → Code security*: secret scanning and push protection **on** (THREAT_MODEL T26). Options as presented to the owner:
 The VGE repo has no remote (A2). If it is created **private** on GitHub Free, rulesets, branch protection and environment required-reviewers are unavailable ([GitHub plans](https://docs.github.com/en/get-started/learning-about-github/githubs-plans), retrieved 2026-10-02). Deliverable 3 cannot then be met. Options for the owner (none chosen):
 - **A.** VGE repo **public**: ruleset as §4.1. Cost USD 0. Exposes control design (not secrets — those are SOPS-encrypted per DECISIONS #10). Threat-model change needed.
 - **B.** GitHub Pro, USD 4/month: breaks DECISIONS #23.

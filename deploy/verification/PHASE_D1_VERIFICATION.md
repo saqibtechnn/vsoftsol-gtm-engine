@@ -104,6 +104,20 @@ $ gh api user --jq '{login,two_factor_authentication}'
 ### Billing alert at the ceiling; audit logging enabled
 - **Result:** **NOT RUN** (owner, runbook §2.3–2.4).
 
+### Pre-publication check for the public VGE repo (DECISIONS #24), 2026-10-03
+- **Command(s) run:** regex scan of `git log --all -p` for Anthropic/GitHub/AWS/Slack/age keys, PEM private keys and credentialed Postgres URLs; filename scan for `.env`, `.pem`, `.key`, SSH keys, `.age`, tfstate.
+- **Output:**
+```
+commits: 9
+pattern hits above (blank = none)
+.claude/agents/secrets-custodian.md
+deploy/runbooks/SECRET_ROTATION.md
+suspicious filenames above (blank = none)
+      9 saqibtechnn <saqibtechnn@gmail.com>
+```
+- **Result:** PASS (heuristic). The two filenames are documentation and contain no secrets. This is a regex scan, not gitleaks; the full gitleaks history scan is a D5 deliverable and must also run in CI on the public repo (D9).
+- **Notes:** all 9 commits carry the author email `saqibtechnn@gmail.com`, which becomes public with the repo. That is the owner's choice to make before the first push.
+
 ## 5. Adversarial / negative tests
 - Scripts that could change production state carry guards, reviewed for "what if the control is missing": `verify_site_push_blocked.sh` pushes only an empty commit and only after confirming the ruleset is active; `verify_github_app_scope.sh` check 9 confirms the `pull_request` rule is active before attempting a write to `main`; `verify_oci_scope.sh` uses a read (lifecycle-policy get) instead of a bucket delete to test bucket-manage denial; Cloudflare checks are reads or invalid-value writes.
 - No control is live, so no adversarial test against a real control was possible.
@@ -138,7 +152,7 @@ IDENTITY_AND_ACCESS.md, TOKEN_INVENTORY.md, BREAK_GLASS.md, D1_ACCOUNT_SETUP.md 
 
 ## 11. Recommendation to the gate
 **BLOCKED — do not mark PASS.** To unblock:
-1. Owner answers remaining OPEN inputs: VGE repo name (A2), product repos (A3), OCI tenancy region/no-card (A4), MFA (A5), DNS host (A6), social platforms (A7), Vercel plan (A8), static IP for the bastion allowlist.
+1. Owner answers remaining OPEN inputs: product repos (A3), social platforms (A7), Vercel plan (A8), static IP for the bastion allowlist. Answered 2026-10-03: VGE repo `saqibtechnn/vsoftsol-gtm-engine` (A2), OCI Toronto/no card (A4, stated), MFA on all (A5, stated), DNS on Cloudflare (A6, confirmed by NS lookup). Owner-stated items still need the runbook evidence.
 2. Owner runs `deploy/scripts/d1/verify_site_push_blocked.sh saqibtechnn/vsoftsol-website --confirm` and pastes the output.
 3. Owner executes `D1_ACCOUNT_SETUP.md`, including creating the public VGE repo; Claude then applies `protect-main` to it (on confirmation) and enables secret scanning + push protection.
 4. Scope, revocation and push tests run; real output pasted here; break-glass drill recorded. `verify_oci_scope.sh` check 7 (bastion session denial) cannot run until the bastion exists, so it is carried as a **D2 exit criterion**; D1 may pass with that as a stated condition.

@@ -17,7 +17,7 @@ Design rationale: `deploy/docs/IDENTITY_AND_ACCESS.md`.
 | 4 | Postgres app role `vge_app` | DESIGNED (created in D4) | Application data access | `LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOREPLICATION`; DML on `vge` schema only; no DDL (migrations run as a separate `vge_migrator` role) | Owner | SOPS (D5) → tmpfs → app containers | 180 days | `ALTER ROLE vge_app NOLOGIN;` then terminate sessions: `SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE usename='vge_app';` | — |
 | 5 | Redis password | DESIGNED (created in D4) | Queue access | Host-internal Compose network only; ACL user `vge` with `-@admin -@dangerous` | Owner | SOPS (D5) → tmpfs | 180 days | `ACL SETUSER vge off` + restart clients | — |
 | 6 | Email provider API key | N/A | Outbound sending | Not created: draft-only, owner hand-sends (DECISIONS #7) | — | — | — | — | — |
-| 7a | Cloudflare account-owned API token `vge-tofu-dns` | OPEN (only if vsoftsol.com DNS is on Cloudflare, A6) | OpenTofu: DNS records for vsoftsol.com | Account-owned token. Permissions: **Zone → DNS → Edit** on the vsoftsol.com zone only. No tunnel or Access permissions (DECISIONS #25). TTL 90 days | Owner | Owner's Codespaces secret (user-level, restricted to the VGE repo). Never on the host | 90 days (TTL forces it) | Cloudflare → Manage Account → Account API Tokens → **Roll** or **Delete** | — |
+| 7a | Cloudflare account-owned API token `vge-tofu-dns` | DESIGNED (DNS confirmed on Cloudflare 2026-10-03) | OpenTofu: DNS records for vsoftsol.com | Account-owned token. Permissions: **Zone → DNS → Edit** on the vsoftsol.com zone only. No tunnel or Access permissions (DECISIONS #25). TTL 90 days | Owner | Owner's Codespaces secret (user-level, restricted to the VGE repo). Never on the host | 90 days (TTL forces it) | Cloudflare → Manage Account → Account API Tokens → **Roll** or **Delete** | — |
 | 7b | ~~Cloudflare tunnel token `vge-prod-tunnel`~~ | N/A | Superseded: no Cloudflare Tunnel (DECISIONS #25) | — | — | — | — | — | — |
 | 7c | ~~Cloudflare tunnel token `vge-staging-tunnel`~~ | N/A | Superseded: staging uses Codespaces private port forwarding (DECISIONS #25) | — | — | — | — | — | — |
 | 8 | GHCR push | DESIGNED (D3/D9) | Push images | **No stored token.** GitHub Actions `GITHUB_TOKEN` with `packages: write` on the VGE repo's own package, per job, expires at job end. Pull on the host: decided in D3 (public package needs no credential; anything else is added to this inventory then) | Owner | Not stored | n/a (per-job) | Disable workflow / remove `packages: write` from the workflow | — |
@@ -34,10 +34,10 @@ Design rationale: `deploy/docs/IDENTITY_AND_ACCESS.md`.
 
 | Account | Holder | MFA | Role in system | Evidence |
 |---|---|---|---|---|
-| GitHub `saqibtechnn` | Owner | **OPEN** — not readable with current token | Owns repos, App, rulesets; approves PRs | Owner screenshot of *Settings → Password and authentication* (runbook §1) |
-| OCI tenancy administrator | Owner | **OPEN** | Tenancy admin; creates IAM users | Runbook §2 |
-| Cloudflare account (only if DNS host, A6) | Owner | **OPEN** | Super admin; DNS only | Runbook §3 |
-| Vercel account | Owner | **OPEN** | Hosts site; deploys from `main` | Runbook §5 |
+| GitHub `saqibtechnn` | Owner | Owner-stated on 2026-10-03; evidence pending (not readable with current token) | Owns repos, App, rulesets; approves PRs | Owner screenshot of *Settings → Password and authentication* (runbook §1) |
+| OCI tenancy administrator | Owner | Owner-stated on 2026-10-03; evidence pending | Tenancy admin; creates IAM users | Runbook §2 |
+| Cloudflare account (DNS host for vsoftsol.com) | Owner | Owner-stated on 2026-10-03; evidence pending | Super admin; DNS only | Runbook §3 |
+| Vercel account | Owner | Owner-stated on 2026-10-03; evidence pending | Hosts site; deploys from `main` | Runbook §5 |
 
 No VGE runtime component authenticates as any account in this table.
 
@@ -54,7 +54,7 @@ Scripts: `deploy/scripts/d1/`. Rows are filled with real output only.
 | # | Out-of-scope action attempted | Result | Evidence |
 |---|---|---|---|
 | 1 | 9 denials + token revocation (`verify_github_app_scope.sh`) | NOT RUN — credential not created | — |
-| 7a | Single-zone visibility, zone-settings / members / Access / Workers / tokens denials (`verify_cloudflare_token_scope.sh`) | NOT RUN — token not created (A6 OPEN) | — |
+| 7a | Single-zone visibility, zone-settings / members / Access / Workers / tokens denials (`verify_cloudflare_token_scope.sh`) | NOT RUN — token not created | — |
 | 10a | Root-compartment and IAM reads (`verify_oci_scope.sh`, `vge-tofu`) | NOT RUN — credential not created | — |
 | 14 | Bastion session creation by `vge-tofu` denied (`verify_oci_scope.sh` check 7) | NOT RUN — OCI not set up | — |
 | Site ruleset | Direct push to `main` (`verify_site_push_blocked.sh`) | Ruleset applied 2026-10-02 (id 24366860; deletion, non_fast_forward, required_signatures, pull_request active on `main`). Push test **NOT RUN**: Claude Code permission classifier denied the live push; owner to run | PHASE_D1_VERIFICATION §4 |

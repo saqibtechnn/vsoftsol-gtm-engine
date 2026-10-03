@@ -56,7 +56,7 @@ Evidence rule: for each step, save the evidence listed (screenshot or command ou
    ```
    (with the env vars listed in the script header).
 
-## §3 Cloudflare — only if vsoftsol.com DNS is on Cloudflare (OPEN A6); no Zero Trust, no tunnel (DECISIONS #25)
+## §3 Cloudflare — DNS host for vsoftsol.com (confirmed 2026-10-03); no Zero Trust, no tunnel (DECISIONS #25)
 Once decided:
 1. Account → *Members*: only the owner; **Enforce two-factor authentication** for members. Owner 2FA on; backup codes → BREAK_GLASS K3. **Evidence:** screenshots.
 2. If vsoftsol.com DNS is (or is moved to) Cloudflare — **a DNS change requires separate explicit confirmation** (CLAUDE.md §2.7).

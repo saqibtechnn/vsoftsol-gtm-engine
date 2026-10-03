@@ -19,7 +19,7 @@ Prepared once in D1 (runbook `D1_ACCOUNT_SETUP.md` §6), held offline, separate 
 |---|---|---|
 | K1 | GitHub recovery codes for `saqibtechnn` | D1 |
 | K2 | OCI tenancy admin MFA recovery: second registered TOTP device or recovery path documented by Oracle for the tenancy | D1 |
-| K3 | Cloudflare 2FA backup codes (only if Cloudflare hosts DNS) | D1 |
+| K3 | Cloudflare 2FA backup codes (Cloudflare hosts vsoftsol.com DNS) | D1 |
 | K4 | Vercel recovery codes (if Vercel MFA enabled) | D1 |
 | K5 | Sealed copy of the production age key | D5 |
 | K6 | Host and console access when Bastion is unavailable: OCI instance console connection procedure (serial console via OCI login + MFA; no standing SSH key). Normal console path is an OCI Bastion session (DECISIONS #25) | D2 |

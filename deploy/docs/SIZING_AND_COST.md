@@ -61,6 +61,6 @@ For the record, the modelled alternatives were: USD 409.17/month (plan defaults,
 | Monthly ceiling | **USD 0** | DECISIONS #23 |
 | OCI | Always-Free-only tenancy (cannot incur charges) + budget alert at **USD 0.01** | OCI Budgets (D1) |
 | GitHub | **No payment method** on the account: Codespaces and Actions minutes block rather than bill | GitHub billing settings (D1) |
-| Cloudflare (DNS only, if used), Grafana Cloud, uptime monitor, Backblaze | Free plans, no payment method where the provider allows it | D1 account setup |
+| Cloudflare (DNS only), Grafana Cloud, uptime monitor, Backblaze | Free plans, no payment method where the provider allows it | D1 account setup |
 | LLM | No provider account with billing | DECISIONS #16 |
 | Monthly check | Every provider's billing page reviewed once a month; any charge is an incident | Plan §6 monthly operations |

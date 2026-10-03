@@ -33,11 +33,11 @@ Decide and record who and what can touch VGE before anything exists to touch: on
 | # | Assumption | Status |
 |---|---|---|
 | A1 | Site repo is `saqibtechnn/vsoftsol-website` | **Confirmed** by owner 2026-10-02 (approved applying the ruleset to it) |
-| A2 | VGE repo GitHub location | **Public** under `saqibtechnn` (DECISIONS #24); repo name **OPEN** — this repo has no git remote |
+| A2 | VGE repo GitHub location | `saqibtechnn/vsoftsol-gtm-engine`, public (owner 2026-10-03; DECISIONS #24). **Not yet created** (`gh api` 404, 2026-10-03) |
 | A3 | Product repos read by VGE | **OPEN** — candidates seen in `gh repo list`: `agentic-enhancement-platform` (private), `vsoftsol-syslog-manager`, `vSoft-Baclup-Updates`, `VsoftNetwork-Monitoring`, `Updates` (public). Not assumed |
-| A4 | OCI tenancy exists, home region `ca-toronto-1`, no payment method | **OPEN** |
-| A5 | MFA on GitHub, OCI, Cloudflare | **OPEN** — cannot be read with the current GitHub token (§6) |
-| A6 | vsoftsol.com DNS is on Cloudflare | **OPEN** |
+| A4 | OCI tenancy exists, home region `ca-toronto-1`, no payment method | **Owner-stated 2026-10-03**; screenshot evidence pending (D1_ACCOUNT_SETUP §2.1) |
+| A5 | MFA on GitHub, OCI, Cloudflare, Vercel | **Owner-stated 2026-10-03** (authenticator/security key on all); evidence pending (§1.1, §2.2, §3.1, §5.1). Not readable with the current GitHub token (§6) |
+| A6 | vsoftsol.com DNS is on Cloudflare | **Confirmed** — owner 2026-10-03, and `nslookup -type=NS vsoftsol.com` → `macy.ns.cloudflare.com`, `drew.ns.cloudflare.com` (2026-10-03) |
 | A7 | Social platforms in scope | **OPEN** — treated as deferred; no social credential is created in D1 |
 | A8 | Vercel plan (Hobby/Pro) | **OPEN** (R4) |
 
@@ -57,7 +57,7 @@ Principle: **humans authenticate as themselves with MFA; machines authenticate a
 | OCI | Tenancy admin (owner), MFA | IAM user `vge-tofu` (API key only, no console password) in group `vge-provisioners`; IAM user `vge-backup` (customer secret key only) in group `vge-backup-writers` | Separates "can build infrastructure" (used from Codespaces only during D2) from "can write backups" (on the host forever) |
 | OCI (console access) | Owner via Bastion session, MFA | none — per-session ephemeral SSH key on the owner device | DECISIONS #25 |
 | OCI (host) | — | **Instance principal** via dynamic group `vge-prod-host` if the host needs OCI API access | No key on disk at all; preferred over `vge-backup` if WAL-G supports it in D4 |
-| Cloudflare (DNS only, if A6) | Owner, MFA | **Account-owned API token** `vge-tofu-dns` (DNS edit on one zone). No tunnel (DECISIONS #25) | Account-owned tokens are not tied to the owner's user and survive a change of user |
+| Cloudflare (DNS only) | Owner, MFA | **Account-owned API token** `vge-tofu-dns` (DNS edit on one zone). No tunnel (DECISIONS #25) | Account-owned tokens are not tied to the owner's user and survive a change of user |
 | Vercel | Owner | **OPEN** — project-scoped token `vge-vercel-preview-read` only if VGE needs preview status | GitHub check status on the PR may make a Vercel token unnecessary (fewer credentials) |
 | Email | Owner hand-sends | none (DECISIONS #7) | Draft-only |
 | LLM | — | none (DECISIONS #16) | Deferred |
@@ -113,7 +113,7 @@ Design (built as code in D2, `infra-engineer`):
 - `caddy` binds to the host private IP only. Console reached as `ssh -i <session key> -N -L 8443:<host-private-ip>:443 -p 22 <session-ocid>@host.bastion.ca-toronto-1.oci.oraclecloud.com`, then `https://localhost:8443`.
 - **The provisioning identity must not open sessions.** `vge-provisioners` policy: `Allow group vge-provisioners to manage all-resources in compartment vge where request.permission != 'BASTION_SESSION_CREATE'`. The D2 scope test (`verify_oci_scope.sh` check 7) validates the condition syntax. If OCI rejects it, stop and redesign rather than drop the condition.
 - Staging: Codespaces private port forwarding (GitHub login + MFA); never made public.
-- Cloudflare: if vsoftsol.com DNS is on Cloudflare (OPEN A6), the account keeps owner-only membership with enforced 2FA, and its only token is a DNS-edit token (TOKEN_INVENTORY #7a). Otherwise Cloudflare is out of the system path entirely.
+- Cloudflare: vsoftsol.com DNS is on Cloudflare (A6 confirmed). The account keeps owner-only membership with enforced 2FA, and its only token is a DNS-edit token (TOKEN_INVENTORY #7a).
 
 ## 6. Observed state at D1 start (2026-10-02, read-only)
 ```
@@ -140,5 +140,5 @@ $ gh api user --jq '{login,two_factor_authentication}'
 | GitHub (personal account) | Security log (`/settings/security-log`); ruleset bypass insights | On | None needed; monthly review |
 | OCI | Audit service, 365-day retention | On, cannot be disabled | Confirm retention in runbook §2 |
 | OCI Bastion | Audit `CreateSession` / `DeleteSession` events | On (part of OCI Audit) | Monthly review: every session matches an owner console use |
-| Cloudflare (if DNS host) | Account audit log | On | Monthly review |
+| Cloudflare (DNS host) | Account audit log | On | Monthly review |
 | Vercel | Activity log | On | OPEN (A8) |

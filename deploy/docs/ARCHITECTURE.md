@@ -2,7 +2,7 @@
 
 Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two components — `dispatcher` and `egress-proxy` — per DECISIONS.md #14 and #15. Revised 2026-09-28: hosting on OCI Always Free with **Postgres self-hosted on the host** (DECISIONS #1, #3) and production releases gated by an **owner signature verified on the host** (#19). Status: **awaiting owner sign-off**.
 
-> **Amended 2026-10-02 (D1, DECISIONS #25):** console access moves from Cloudflare Tunnel + Access to **OCI Bastion** port-forwarding sessions. `cloudflared` and the `hooks.` webhook path are removed. Cloudflare remains only as the DNS host for vsoftsol.com, if it is one (OPEN).
+> **Amended 2026-10-02 (D1, DECISIONS #25):** console access moves from Cloudflare Tunnel + Access to **OCI Bastion** port-forwarding sessions. `cloudflared` and the `hooks.` webhook path are removed. Cloudflare remains only as the DNS host for vsoftsol.com (confirmed 2026-10-03).
 
 ## Topology
 
@@ -12,8 +12,8 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
       ┌───────────────────┬───────┴──────────┬──────────────────────┐
       │                   │                  │                      │
  vsoftsol.com        OCI Bastion         Owner's mailbox        Research targets
- (Vercel; DNS        (managed, free;     (hand-sends approved   (public web,
-  host OPEN)          owner OCI login     drafts; subdomain      robots/ToS honoured)
+ (Vercel; DNS on     (managed, free;     (hand-sends approved   (public web,
+  Cloudflare)         owner OCI login     drafts; subdomain      robots/ToS honoured)
       ▲               + MFA, ≤3 h SSH     of vsoftsol.com)            ▲
       │ PR only       port-forward              ▲                     │ via proxy only
       │               session)                  │ owner copies        │ (only once an

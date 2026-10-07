@@ -10,12 +10,14 @@
 #   GH_APP_KEY_FILE      path to the App private key (.pem). Read, never printed.
 #   GH_APP_ROLE          site | reader
 #   GH_APP_SITE_REPO     an owner/repo the App is installed on (for role reader: one product repo)
-#   GH_APP_OTHER_REPO    owner/repo the App is NOT installed on (expect 404)
+#   GH_APP_EXPECT_REPOS  comma-separated owner/repo list the installation must cover EXACTLY
+#   GH_APP_OTHER_REPO    optional: a PRIVATE owner/repo the App is NOT installed on (expect 404).
+#                        Public repos are readable by anyone, so they prove nothing here.
 # Requires: openssl, curl, jq. Run in Codespaces, not on the host.
 set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 1; }
-for v in GH_APP_ID GH_APP_KEY_FILE GH_APP_ROLE GH_APP_SITE_REPO GH_APP_OTHER_REPO; do
+for v in GH_APP_ID GH_APP_KEY_FILE GH_APP_ROLE GH_APP_SITE_REPO GH_APP_EXPECT_REPOS; do
   [[ -n "${!v:-}" ]] || die "$v is not set"
 done
 [[ "$GH_APP_ROLE" == site || "$GH_APP_ROLE" == reader ]] || die "GH_APP_ROLE must be site or reader"
@@ -57,12 +59,18 @@ expect() { # name expected-codes actual
 }
 
 echo "Token: ghs_****REDACTED**** (installation $INST_ID, expires in <= 60 min)"
-echo "== Granted permissions on the token:"
-curl -fsS -H "Authorization: token $TOKEN" "$API/installation/repositories" \
-  | jq -c '{total_count, repos: [.repositories[].full_name]}'
+echo "== Repositories this installation can reach:"
+GOT=$(curl -fsS -H "Authorization: token $TOKEN" "$API/installation/repositories?per_page=100" \
+  | jq -r '[.repositories[].full_name | ascii_downcase] | sort | join(",")')
+WANT=$(tr ',' '\n' <<<"$GH_APP_EXPECT_REPOS" | sed '/^$/d' | tr '[:upper:]' '[:lower:]' | sort | paste -sd, -)
+echo "$GOT"
+if [[ "$GOT" == "$WANT" ]]; then echo "PASS  0 installation covers exactly the expected repos"
+else echo "FAIL  0 installation repos differ from expected ($WANT)"; FAILS=$((FAILS+1)); fi
 
 expect "1 in-scope: read installed repo"            "200"     "$(call GET "/repos/$GH_APP_SITE_REPO")"
-expect "2 other repo is invisible"                  "404"     "$(call GET "/repos/$GH_APP_OTHER_REPO")"
+if [[ -n "${GH_APP_OTHER_REPO:-}" ]]; then
+  expect "2 private repo outside the install is invisible" "404" "$(call GET "/repos/$GH_APP_OTHER_REPO")"
+fi
 expect "3 read repo rulesets (admin) denied"        "403 404" "$(call GET "/repos/$GH_APP_SITE_REPO/rulesets/rule-suites")"
 expect "4 change repo settings denied"              "403 404" "$(call PATCH "/repos/$GH_APP_SITE_REPO" '{"has_wiki":false}')"
 expect "5 list webhooks (admin) denied"             "403 404" "$(call GET "/repos/$GH_APP_SITE_REPO/hooks")"

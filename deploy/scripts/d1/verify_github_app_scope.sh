@@ -1,20 +1,24 @@
 #!/usr/bin/env bash
-# D1 verification: the VGE GitHub App can reach the site repo with exactly its documented
-# permissions and nothing else. Every check attempts an action OUTSIDE scope and expects denial,
+# D1 verification: a VGE GitHub App can reach its installed repo(s) with exactly its documented
+# permissions and nothing else. Two roles (TOKEN_INVENTORY #1 and #15):
+#   site   - vge-site-bot: contents+PR write on the site repo; direct write to main must hit the ruleset
+#   reader - vge-repo-reader: contents read only on product repos; any write must be refused Every check attempts an action OUTSIDE scope and expects denial,
 # except check 1, which proves the token works at all (a dead token would "pass" every denial).
 #
 # Inputs (env):
 #   GH_APP_ID            numeric App ID
 #   GH_APP_KEY_FILE      path to the App private key (.pem). Read, never printed.
-#   GH_APP_SITE_REPO     owner/repo the App is installed on (the only allowed repo)
+#   GH_APP_ROLE          site | reader
+#   GH_APP_SITE_REPO     an owner/repo the App is installed on (for role reader: one product repo)
 #   GH_APP_OTHER_REPO    owner/repo the App is NOT installed on (expect 404)
 # Requires: openssl, curl, jq. Run in Codespaces, not on the host.
 set -euo pipefail
 
 die() { echo "ERROR: $*" >&2; exit 1; }
-for v in GH_APP_ID GH_APP_KEY_FILE GH_APP_SITE_REPO GH_APP_OTHER_REPO; do
+for v in GH_APP_ID GH_APP_KEY_FILE GH_APP_ROLE GH_APP_SITE_REPO GH_APP_OTHER_REPO; do
   [[ -n "${!v:-}" ]] || die "$v is not set"
 done
+[[ "$GH_APP_ROLE" == site || "$GH_APP_ROLE" == reader ]] || die "GH_APP_ROLE must be site or reader"
 [[ -r "$GH_APP_KEY_FILE" ]] || die "cannot read GH_APP_KEY_FILE"
 for c in openssl curl jq; do command -v "$c" >/dev/null || die "$c not found"; done
 
@@ -57,14 +61,21 @@ echo "== Granted permissions on the token:"
 curl -fsS -H "Authorization: token $TOKEN" "$API/installation/repositories" \
   | jq -c '{total_count, repos: [.repositories[].full_name]}'
 
-expect "1 in-scope: read site repo"                 "200"     "$(call GET "/repos/$GH_APP_SITE_REPO")"
+expect "1 in-scope: read installed repo"            "200"     "$(call GET "/repos/$GH_APP_SITE_REPO")"
 expect "2 other repo is invisible"                  "404"     "$(call GET "/repos/$GH_APP_OTHER_REPO")"
 expect "3 read repo rulesets (admin) denied"        "403 404" "$(call GET "/repos/$GH_APP_SITE_REPO/rulesets/rule-suites")"
 expect "4 change repo settings denied"              "403 404" "$(call PATCH "/repos/$GH_APP_SITE_REPO" '{"has_wiki":false}')"
-expect "5 list webhooks (admin) denied" "403 404" "$(call GET "/repos/$GH_APP_SITE_REPO/hooks")"
+expect "5 list webhooks (admin) denied"             "403 404" "$(call GET "/repos/$GH_APP_SITE_REPO/hooks")"
 expect "6 add a collaborator denied"                "403 404" "$(call PUT "/repos/$GH_APP_SITE_REPO/collaborators/octocat" '{"permission":"pull"}')"
 expect "7 Actions secrets denied"                   "403 404" "$(call GET "/repos/$GH_APP_SITE_REPO/actions/secrets")"
 expect "8 create a repo denied"                     "403 404" "$(call POST "/user/repos" '{"name":"d1-scope-test"}')"
+if [[ "$GH_APP_ROLE" == reader ]]; then
+  # A read-only App must not be able to create a branch. If it wrongly can, delete what it created.
+  HEAD_SHA=$(curl -fsS -H "Authorization: token $TOKEN" "$API/repos/$GH_APP_SITE_REPO/commits/HEAD" | jq -r .sha)
+  RC=$(call POST "/repos/$GH_APP_SITE_REPO/git/refs" "{\"ref\":\"refs/heads/d1-scope-test\",\"sha\":\"$HEAD_SHA\"}")
+  expect "9 create a branch denied (read-only App)" "403 404" "$RC"
+  if [[ "$RC" == 201 ]]; then call DELETE "/repos/$GH_APP_SITE_REPO/git/refs/heads/d1-scope-test" >/dev/null; fi
+else
 # Direct write to main with contents:write must be stopped by the ruleset (rule violation = 409/422).
 # Guard: if the ruleset is not active this write WOULD land on main and deploy, so check first.
 ACTIVE=$(curl -fsS "$API/repos/$GH_APP_SITE_REPO/rules/branches/main" | jq -r '[.[].type] | index("pull_request") != null')
@@ -72,6 +83,7 @@ ACTIVE=$(curl -fsS "$API/repos/$GH_APP_SITE_REPO/rules/branches/main" | jq -r '[
 MAIN_SHA=$(curl -fsS -H "Authorization: token $TOKEN" "$API/repos/$GH_APP_SITE_REPO/contents/robots.txt" | jq -r .sha)
 expect "9 commit directly to main denied by ruleset" "403 409 422" \
   "$(call PUT "/repos/$GH_APP_SITE_REPO/contents/robots.txt" "{\"message\":\"test(d1): must be rejected\",\"content\":\"\",\"sha\":\"$MAIN_SHA\"}")"
+fi
 
 # Revocation: the installation token is revoked here and must stop working immediately.
 expect "10 revoke installation token"               "204"     "$(call DELETE "/installation/token")"

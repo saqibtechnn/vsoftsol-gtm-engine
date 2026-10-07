@@ -33,6 +33,7 @@ Evidence rule: for each step, save the evidence listed (screenshot or command ou
    - *Install App* → `saqibtechnn` → **Only select repositories** → `vsoftsol-website`.
    - **Evidence:** screenshot of the permissions page and the installation's repository list. Record the App ID (not secret) in TOKEN_INVENTORY #1.
 5. Revocation test (throwaway): generate a **second** private key, mint a JWT with it (same method as `verify_github_app_scope.sh`), **delete** that key in the App settings, confirm the JWT is rejected with 401. **Evidence:** the 401 output.
+5a. Create a second GitHub App `vge-repo-reader` the same way, with **Contents: Read-only** (Metadata read is automatic) and nothing else, webhook inactive, "Only on this account". Install it on **only** `agentic-enhancement-platform`, `vsoftsol-syslog-manager`, `VsoftNetwork-Monitoring`, `vSoft-Baclup-Updates`. Store its key as Codespaces secret `GH_READER_APP_KEY_PEM`; delete the download. Run `GH_APP_ROLE=reader deploy/scripts/d1/verify_github_app_scope.sh` with `GH_APP_SITE_REPO=saqibtechnn/agentic-enhancement-platform` and `GH_APP_OTHER_REPO=saqibtechnn/vsoftsol-website`. Run the site bot with `GH_APP_ROLE=site`.
 6. Apply the site ruleset — Claude Code may run this **only after the owner confirms in chat**:
    ```bash
    deploy/scripts/d1/apply_site_ruleset.sh saqibtechnn/vsoftsol-website
@@ -68,7 +69,7 @@ No git identity is configured on the owner PC by Claude. The owner sets `user.na
 
 ## §5 Vercel
 1. Account MFA on; recovery codes → BREAK_GLASS K4. **Evidence:** screenshot.
-2. Record the plan (Hobby/Pro) in IDENTITY_AND_ACCESS A8. Hobby is limited to non-commercial use under Vercel's terms; vsoftsol.com is commercial → owner decision.
+2. Plan recorded 2026-10-07: **Hobby** (A8). Hobby is limited to non-commercial use under Vercel's terms; vsoftsol.com is commercial → owner decision. Resolution is DECISIONS #26.
 3. No Vercel token is created unless D6/D9 shows the PR commit status is insufficient (TOKEN_INVENTORY #2).
 
 ## §6 Break-glass kit

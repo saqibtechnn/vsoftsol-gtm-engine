@@ -34,12 +34,12 @@ Decide and record who and what can touch VGE before anything exists to touch: on
 |---|---|---|
 | A1 | Site repo is `saqibtechnn/vsoftsol-website` | **Confirmed** by owner 2026-10-02 (approved applying the ruleset to it) |
 | A2 | VGE repo GitHub location | `saqibtechnn/vsoftsol-gtm-engine`, public (owner 2026-10-03; DECISIONS #24). **Created 2026-10-03** by Claude Code on owner confirmation; `main` and tag `deploy-v0.0.0` pushed |
-| A3 | Product repos read by VGE | **OPEN** — candidates seen in `gh repo list`: `agentic-enhancement-platform` (private), `vsoftsol-syslog-manager`, `vSoft-Baclup-Updates`, `VsoftNetwork-Monitoring`, `Updates` (public). Not assumed |
+| A3 | Product repos read by VGE | **Answered 2026-10-07:** `saqibtechnn/agentic-enhancement-platform` (private), `saqibtechnn/vsoftsol-syslog-manager`, `saqibtechnn/VsoftNetwork-Monitoring`, `saqibtechnn/vSoft-Baclup-Updates` (public). Read via GitHub App `vge-repo-reader` (TOKEN_INVENTORY #15) |
 | A4 | OCI tenancy exists, home region `ca-toronto-1`, no payment method | **Owner-stated 2026-10-03**; screenshot evidence pending (D1_ACCOUNT_SETUP §2.1) |
 | A5 | MFA on GitHub, OCI, Cloudflare, Vercel | **Owner-stated 2026-10-03** (authenticator/security key on all); evidence pending (§1.1, §2.2, §3.1, §5.1). Not readable with the current GitHub token (§6) |
 | A6 | vsoftsol.com DNS is on Cloudflare | **Confirmed** — owner 2026-10-03, and `nslookup -type=NS vsoftsol.com` → `macy.ns.cloudflare.com`, `drew.ns.cloudflare.com` (2026-10-03) |
-| A7 | Social platforms in scope | **OPEN** — treated as deferred; no social credential is created in D1 |
-| A8 | Vercel plan (Hobby/Pro) | **OPEN** (R4) |
+| A7 | Social platforms in scope | **None for now** (owner 2026-10-07). No social credential exists; revisited before any posting feature |
+| A8 | Vercel plan (Hobby/Pro) | **Hobby** (owner 2026-10-07) → terms risk R4; DECISIONS #26 OPEN |
 
 ### Rollback
 Every D1 change is revocable: delete the GitHub ruleset (`gh api -X DELETE repos/<repo>/rulesets/<id>`), uninstall/delete the GitHub App, delete OCI IAM users/groups/policies, revoke Cloudflare tokens. Each command is in `TOKEN_INVENTORY.md`. No D1 step touches DNS or data.
@@ -53,6 +53,7 @@ Principle: **humans authenticate as themselves with MFA; machines authenticate a
 | Provider | Human identity (owner) | Machine identity | Why this form |
 |---|---|---|---|
 | GitHub | `saqibtechnn`, MFA | **GitHub App `vge-site-bot`** (owned by `saqibtechnn`), installed on the site repo only | Apps act as themselves (`vge-site-bot[bot]`), get 1-hour installation tokens, per-repo install, per-permission scopes. A machine *user* account would be a second personal-style login with its own password and MFA to guard |
+| GitHub (read) | — | **GitHub App `vge-repo-reader`**: Contents read + Metadata read on the four product repos only; held by `worker` only | Separate from `vge-site-bot` so the read path (which processes untrusted repo content) never holds a write credential |
 | GitHub (CI) | — | Actions `GITHUB_TOKEN` (per-job, auto-expiring) for GHCR push; cosign keyless via OIDC | No long-lived PAT exists for CI |
 | OCI | Tenancy admin (owner), MFA | IAM user `vge-tofu` (API key only, no console password) in group `vge-provisioners`; IAM user `vge-backup` (customer secret key only) in group `vge-backup-writers` | Separates "can build infrastructure" (used from Codespaces only during D2) from "can write backups" (on the host forever) |
 | OCI (console access) | Owner via Bastion session, MFA | none — per-session ephemeral SSH key on the owner device | DECISIONS #25 |
@@ -109,7 +110,7 @@ Deliverable 5 asks for a Cloudflare access policy and Zero Trust group. DECISION
 | `hooks.` bypass | **Removed**: no webhook ingress (draft-only email, #7) |
 
 Design (built as code in D2, `infra-engineer`):
-- Bastion `vge-bastion` in compartment `vge`, target subnet = host subnet, `client_cidr_block_allow_list` = owner's public IP /32 if it is static, otherwise `0.0.0.0/0` (session creation still needs OCI login + MFA and a fresh SSH key). **OPEN:** is the owner's IP static?
+- Bastion `vge-bastion` in compartment `vge`, target subnet = host subnet, `client_cidr_block_allow_list` = `0.0.0.0/0`, because the owner's IP is not static (owner 2026-10-07). Session creation still needs OCI login + MFA and a fresh SSH key per session.
 - `caddy` binds to the host private IP only. Console reached as `ssh -i <session key> -N -L 8443:<host-private-ip>:443 -p 22 <session-ocid>@host.bastion.ca-toronto-1.oci.oraclecloud.com`, then `https://localhost:8443`.
 - **The provisioning identity must not open sessions.** `vge-provisioners` policy: `Allow group vge-provisioners to manage all-resources in compartment vge where request.permission != 'BASTION_SESSION_CREATE'`. The D2 scope test (`verify_oci_scope.sh` check 7) validates the condition syntax. If OCI rejects it, stop and redesign rather than drop the condition.
 - Staging: Codespaces private port forwarding (GitHub login + MFA); never made public.

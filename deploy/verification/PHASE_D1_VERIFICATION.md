@@ -147,7 +147,7 @@ suspicious filenames above (blank = none)
 | D1-B2 | High | Cloudflare Zero Trust Free requires a payment method; Tailscale free plan non-commercial only | **Resolved** — OCI Bastion (DECISIONS #25); D0 docs amended | Provisioning identity denied `BASTION_SESSION_CREATE` (verified in D2, check 7) |
 | D1-F1 | High | Site repo `main` was unprotected | **Fixed** 2026-10-02 (ruleset 24366860); denial test pending owner run | — |
 | D1-F2 | Medium | Operator `gh` token has `repo` scope on all repos | Open | Owner decision (TOKEN_INVENTORY §C) |
-| D1-F3 | Medium | Site may be on Vercel Hobby (non-commercial terms) for a commercial site | OPEN (A8) | Owner confirms plan |
+| D1-F3 | Medium | Site is on Vercel Hobby (owner 2026-10-07), which is non-commercial only, for a commercial site | OPEN — DECISIONS #26 | Owner decision; not a D1 blocker |
 | D1-F4 | Low | `DECISIONS.md` sign-off rule contradicted the gate commit | **Resolved** — owner ruling recorded in DECISIONS.md header | — |
 
 ## 7. Known limitations
@@ -170,7 +170,7 @@ IDENTITY_AND_ACCESS.md, TOKEN_INVENTORY.md, BREAK_GLASS.md, D1_ACCOUNT_SETUP.md 
 
 ## 11. Recommendation to the gate
 **BLOCKED — do not mark PASS.** To unblock:
-1. Owner answers remaining OPEN inputs: product repos (A3), social platforms (A7), Vercel plan (A8), static IP for the bastion allowlist. Answered 2026-10-03: VGE repo `saqibtechnn/vsoftsol-gtm-engine` (A2), OCI Toronto/no card (A4, stated), MFA on all (A5, stated), DNS on Cloudflare (A6, confirmed by NS lookup). Owner-stated items still need the runbook evidence.
+1. All D1 inputs are answered (2026-10-07): product repos (A3), no social platforms (A7), Vercel Hobby (A8; DECISIONS #26 OPEN, not a D1 blocker), dynamic IP (bastion allowlist `0.0.0.0/0`). Owner-stated items (A4, A5) still need the runbook evidence.
 2. Owner runs `deploy/scripts/d1/verify_site_push_blocked.sh <repo> --confirm` for **both** `saqibtechnn/vsoftsol-website` and `saqibtechnn/vsoftsol-gtm-engine` and pastes the output.
 3. Owner executes `D1_ACCOUNT_SETUP.md`. (VGE repo created, protected and push-protected on 2026-10-03.)
 4. Scope, revocation and push tests run; real output pasted here; break-glass drill recorded. `verify_oci_scope.sh` check 7 (bastion session denial) cannot run until the bastion exists, so it is carried as a **D2 exit criterion**; D1 may pass with that as a stated condition.

@@ -2,6 +2,8 @@
 
 Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two components — `dispatcher` and `egress-proxy` — per DECISIONS.md #14 and #15. Revised 2026-09-28: hosting on OCI Always Free with **Postgres self-hosted on the host** (DECISIONS #1, #3) and production releases gated by an **owner signature verified on the host** (#19). Status: **awaiting owner sign-off**.
 
+> **Amended 2026-10-02 (D1, DECISIONS #25):** console access moves from Cloudflare Tunnel + Access to **OCI Bastion** port-forwarding sessions. `cloudflared` and the `hooks.` webhook path are removed. Cloudflare remains only as the DNS host for vsoftsol.com (confirmed 2026-10-03).
+
 ## Topology
 
 ```
@@ -9,18 +11,18 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
                                   │
       ┌───────────────────┬───────┴──────────┬──────────────────────┐
       │                   │                  │                      │
- vsoftsol.com        Cloudflare          Owner's mailbox        Research targets
- (Vercel, DNS on     Zero Trust          (hand-sends approved   (public web,
-  Cloudflare)        Tunnel               drafts; subdomain      robots/ToS honoured)
-      ▲              ├ console. (Access/   of vsoftsol.com)            ▲
-      │ PR only      │   OIDC + MFA)             ▲                     │ via proxy only
-      │              └ hooks. (HMAC; reserved    │ owner copies        │ (only once an
-      │                 for future providers)    │ approved drafts     │  LLM exists)
+ vsoftsol.com        OCI Bastion         Owner's mailbox        Research targets
+ (Vercel; DNS on     (managed, free;     (hand-sends approved   (public web,
+  Cloudflare)         owner OCI login     drafts; subdomain      robots/ToS honoured)
+      ▲               + MFA, ≤3 h SSH     of vsoftsol.com)            ▲
+      │ PR only       port-forward              ▲                     │ via proxy only
+      │               session)                  │ owner copies        │ (only once an
+      │                  │ private VCN only     │ approved drafts     │  LLM exists)
  ┌────┴───────────────────┴──────────────────────┴─────────────────────┴───┐
  │ VGE HOST  OCI Always Free A1 (arm64), ca-toronto-1, 2 OCPU / 12 GB       │
- │           zero inbound ports                                             │
+ │           zero inbound from internet; 443 from bastion endpoint only     │
  │                                                                          │
- │  cloudflared ─► caddy ─► console (Next.js)                               │
+ │  caddy (host private IP) ─► console (Next.js)                            │
  │                      └─► api (FastAPI) ◄── owner-logged bounces/replies  │
  │                                                                          │
  │  scheduler ─► redis (queues/locks only) ◄── worker (no LLM until #16)    │
@@ -35,7 +37,7 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
  │  postgres 16 (self-hosted) ─► wal-g: continuous WAL archive + daily dump │
  │  deploy-agent: deploys ONLY owner-signed release manifests (#19)         │
  │                                                                          │
- │  host egress allowlist (nftables): GitHub, GHCR, Vercel, Cloudflare,     │
+ │  host egress allowlist (nftables): GitHub, GHCR, Vercel,                 │
  │  social APIs, observability, OCI APIs, backup store, OS mirrors,         │
  │  LLM provider (added only when #16 is decided). All else DENIED.         │
  └───────────────────────────────┬──────────────────────────────────────────┘
@@ -45,17 +47,17 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
                                  │
                    Off-provider encrypted copy (free tier; location set in D4)
 
- Dev + staging: GitHub Codespaces (separate credentials, own tunnel) — #13, #22
+ Dev + staging: GitHub Codespaces (separate credentials; private port forwarding) — #13, #22, #25
 ```
 
 ## Component responsibilities
 
 | Component | What it does | May talk to | Holds credentials | When it dies |
 |---|---|---|---|---|
-| `cloudflared` | Outbound-only tunnel for `console.` and `hooks.` | Cloudflare edge; caddy | Tunnel token | Console and webhooks unreachable. Nothing is sent or published because of it. Providers retry webhooks. Alert (D7). |
-| `caddy` | Internal TLS, security headers, request size and rate limits, routing | console, api | none | Same as tunnel. |
+| OCI Bastion (managed, outside the host) | Time-limited SSH port-forwarding from the owner's machine to `caddy` on the host private IP | host private IP :443 only | none on the host; owner uses an ephemeral SSH key per session | Console unreachable. Nothing is sent or published because of it. Break-glass K6 (instance console connection). |
+| `caddy` | Internal TLS, security headers, request size and rate limits, routing; listens on the host private IP only | console, api | none | Console unreachable; same consequence as bastion loss. |
 | `console` | Operator UI: approval queues with diffs, pipeline, ledger, audit viewer, stop button | api only | Session cookie only — **no provider tokens** | No approvals can be given. The system waits; nothing proceeds unapproved. |
-| `api` | Control plane, approval recording, webhook intake (signature-verified), `/healthz` `/readyz` `/version` | Postgres, Redis | DB app role; webhook signing secrets | Approvals and webhooks stop; workers keep drafting; dispatcher sends nothing new (nothing newly approved). |
+| `api` | Control plane, approval recording, `/healthz` `/readyz` `/version` (no webhook intake: DECISIONS #25) | Postgres, Redis | DB app role | Approvals stop; workers keep drafting; dispatcher sends nothing new (nothing newly approved). |
 | `scheduler` | Enqueues periodic jobs (research refresh, retention, re-verification) | Redis, Postgres | DB app role | No new scheduled work. Silent-failure alert (D7). |
 | `worker` | Runs agents: scanning, research, positioning, content, prospect scoring, drafting | Postgres, Redis, LLM provider (none until DECISIONS #16), GitHub (**read-only**), egress-proxy | LLM key (once chosen); read-only repo token | Jobs stay queued; leases expire and retry idempotently. |
 | `egress-proxy` | Only path to arbitrary web hosts. SSRF deny (private ranges, metadata IPs), protocol allowlist, redirect cap, per-domain rate limit, request logging | public web | none | Research stops (fails closed). |
@@ -70,7 +72,7 @@ Produced in Phase D0 (2026-09-27). Amends the plan §3 topology with two compone
 1. The worker drafts an artefact → stored in Postgres with a `PENDING_APPROVAL` state and a claim-ledger check.
 2. The operator reviews it in the console → the api records a decision (approver, timestamp, diff hash) in Postgres and the audit log.
 3. The dispatcher polls for approved items → re-validates everything → performs the side effect with an idempotency key → records the result.
-4. Bounces, complaints, unsubscribes and replies: with draft-only sending (DECISIONS #7) the **owner logs each one in the console** → api → permanent suppression in Postgres. The `hooks.` webhook path stays reserved for a future sending provider.
+4. Bounces, complaints, unsubscribes and replies: with draft-only sending (DECISIONS #7) the **owner logs each one in the console** → api → permanent suppression in Postgres. There is no webhook ingress (DECISIONS #25); a future sending provider reopens that decision.
 
 No path exists from 1 to 3 that skips 2. The worker cannot perform 3 because it lacks the credentials.
 
@@ -78,9 +80,8 @@ No path exists from 1 to 3 that skips 2. The worker cannot perform 3 because it 
 
 | Boundary | What crosses it | Control | Phase |
 |---|---|---|---|
-| Internet → host | Nothing inbound | Zero open ports; tunnel only | D2, D6 |
-| Internet → `hooks.` | Provider webhooks | HMAC signature, timestamp replay window, rate limit, Access bypass scoped to that path | D8 |
-| Operator → console | Human decisions | Cloudflare Access OIDC + MFA; RBAC in app | D1, D8 |
+| Internet → host | Nothing inbound | Security list: no ingress from 0.0.0.0/0; TCP 443 only from the bastion private endpoint | D2, D6 |
+| Operator → console | Human decisions | OCI console login with MFA → Bastion session (≤ 3 h, ephemeral key, logged in OCI Audit) → app login + RBAC | D1, D8 |
 | Host → internet | Allowlisted destinations only | nftables egress allowlist | D2 |
 | Worker → public web | Research fetches | egress-proxy SSRF and policy controls | D8 |
 | Fetched content / repo content / email replies → agents | **Data only, never instructions** | Content delimiting, per-agent tool allow-lists, no credentials in the agent tier | D8 |
@@ -91,8 +92,8 @@ No path exists from 1 to 3 that skips 2. The worker cannot perform 3 because it 
 
 ## Public / private / allowlisted
 
-- **Public:** vsoftsol.com (Vercel); the `hooks.` webhook path (authenticated).
-- **Private (Access-gated):** console, api.
+- **Public:** vsoftsol.com (Vercel) only.
+- **Private (Bastion-gated):** console, api.
 - **Internal only:** redis, worker, scheduler, dispatcher, egress-proxy.
 - **Allowlisted egress:** the list in the diagram, maintained in one commented file (D2).
 

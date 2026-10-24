@@ -119,7 +119,7 @@ error: failed to push some refs to 'https://github.com/saqibtechnn/vsoftsol-gtm-
 push exit code: 1
 RESULT: PASS - direct push to main was rejected by repository rules
 ```
-- **Site repo, same day:** **NOT RUN — control regressed (D1-F5):**
+- **Site repo, same day:** **NOT RUN — control regressed (D1-F5); rule restored 2026-10-24, re-test pending:**
 ```
 $ bash deploy/scripts/d1/verify_site_push_blocked.sh saqibtechnn/vsoftsol-website --confirm
 == Active rules on saqibtechnn/vsoftsol-website:main
@@ -179,9 +179,10 @@ suspicious filenames above (blank = none)
 | D1-F2 | Medium | Operator `gh` token has `repo` scope on all repos | Open | Owner decision (TOKEN_INVENTORY §C) |
 | D1-F3 | Medium | Site is on Vercel Hobby (owner 2026-10-07), which is non-commercial only, for a commercial site | OPEN — DECISIONS #26 | Owner decision; not a D1 blocker |
 | D1-F4 | Low | `DECISIONS.md` sign-off rule contradicted the gate commit | **Resolved** — owner ruling recorded in DECISIONS.md header | — |
-| D1-F5 | High | Site ruleset `protect-main` edited 2026-10-07 by account `saqibtechnn` (owner, or a session using the owner's `repo`-scoped `gh` token): `pull_request` rule removed. Direct pushes of signed commits to the live site's `main` are no longer blocked | **Open — owner decision** | Owner confirms who changed it and why; restore with `apply_site_ruleset.sh saqibtechnn/vsoftsol-website --apply` (owner merges own PRs via the PR-only admin bypass), then re-run the push test. Also narrows TOKEN_INVENTORY §C |
+| D1-F5 | High | Site ruleset `protect-main` edited 2026-10-07 by account `saqibtechnn` (owner, or a session using the owner's `repo`-scoped `gh` token): `pull_request` rule removed. Direct pushes of signed commits to the live site's `main` are no longer blocked | **Rule restored 2026-10-24** on owner confirmation (`apply_site_ruleset.sh ... --apply` → PUT ruleset 24366860; active: deletion, non_fast_forward, required_signatures, pull_request). Push test to be re-run by owner. Who removed it on 2026-10-07: owner did not say; recorded as unexplained | Was: owner confirms who changed it and why; restore with `apply_site_ruleset.sh saqibtechnn/vsoftsol-website --apply` (owner merges own PRs via the PR-only admin bypass), then re-run the push test. Also narrows TOKEN_INVENTORY §C |
 
 ## 7. Known limitations
+- **Ruleset drift is not detected automatically.** D1-F5 was found only because the push test checks the rules first. A scheduled check that compares live rulesets with `ops/github/site-main-ruleset.json` and alerts on any difference belongs in D7 (alerting) / D9 (CI); until then the monthly access review covers it.
 - Single operator: controls constrain machines and make owner actions visible; they cannot stop the owner.
 - Ruleset bypass by the admin is logged, not prevented; the monthly review is the control.
 - OCI Budgets on an Always-Free-only tenancy not yet confirmed to exist (runbook §2.3 stops if not).

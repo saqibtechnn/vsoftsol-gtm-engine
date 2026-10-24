@@ -51,7 +51,7 @@ Part B, GitHub
 
 Part C, Oracle Cloud
 - C1: screenshot Tenancy details (home region must be Canada Southeast (Toronto); if not, STOP)
-  and the payment-method page (must show none). Record the tenancy OCID.
+  and the billing page (account type must be Free Tier, NOT Pay As You Go; a verification card on file is expected and fine; never click Upgrade). Record the tenancy OCID.
 - C2: OWNER STEP (MFA status, enforcement, bypass codes). You may screenshot the status page after.
 - C3: create budget "vge-zero": root compartment, monthly, USD 1, alert on actual spend at 1%,
   to the owner's email. If Budgets is unavailable or needs an upgrade, STOP.

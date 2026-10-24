@@ -35,7 +35,7 @@ Decide and record who and what can touch VGE before anything exists to touch: on
 | A1 | Site repo is `saqibtechnn/vsoftsol-website` | **Confirmed** by owner 2026-10-02 (approved applying the ruleset to it) |
 | A2 | VGE repo GitHub location | `saqibtechnn/vsoftsol-gtm-engine`, public (owner 2026-10-03; DECISIONS #24). **Created 2026-10-03** by Claude Code on owner confirmation; `main` and tag `deploy-v0.0.0` pushed |
 | A3 | Product repos read by VGE | **Answered 2026-10-07:** `saqibtechnn/agentic-enhancement-platform` (private), `saqibtechnn/vsoftsol-syslog-manager`, `saqibtechnn/VsoftNetwork-Monitoring`, `saqibtechnn/vSoft-Baclup-Updates` (public). Read via GitHub App `vge-repo-reader` (TOKEN_INVENTORY #15) |
-| A4 | OCI tenancy exists, home region `ca-toronto-1`, no payment method | **Owner-stated 2026-10-03**; screenshot evidence pending (D1_ACCOUNT_SETUP §2.1) |
+| A4 | OCI tenancy exists, home region `ca-toronto-1`, Free Tier (never upgraded; a verification card may be on file) | **Owner-stated 2026-10-03**; screenshot evidence pending (D1_ACCOUNT_SETUP §2.1) |
 | A5 | MFA on GitHub, OCI, Cloudflare, Vercel | **Owner-stated 2026-10-03** (authenticator/security key on all); evidence pending (§1.1, §2.2, §3.1, §5.1). Not readable with the current GitHub token (§6) |
 | A6 | vsoftsol.com DNS is on Cloudflare | **Confirmed** — owner 2026-10-03, and `nslookup -type=NS vsoftsol.com` → `macy.ns.cloudflare.com`, `drew.ns.cloudflare.com` (2026-10-03) |
 | A7 | Social platforms in scope | **None for now** (owner 2026-10-07). No social credential exists; revisited before any posting feature |

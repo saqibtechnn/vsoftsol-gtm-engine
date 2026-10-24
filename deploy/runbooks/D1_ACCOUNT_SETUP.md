@@ -114,10 +114,10 @@ Repeat B3 with these differences:
 
 Sign in at cloud.oracle.com with your tenancy name.
 
-### C1. Confirm region and no card
+### C1. Confirm region and Free Tier status
 1. Top-right **Profile** icon → **Tenancy: <name>**. Check **Home region: Canada Southeast (Toronto)** → screenshot `C1-tenancy.png`. Copy the tenancy **OCID** (click *Copy*) → notepad as `OCI_TENANCY_OCID`.
    - **If the home region is not Toronto: stop** and tell Claude Code (Always Free only exists in the home region).
-2. ☰ menu → **Billing & Cost Management** → **Payment method** (or *Upgrade and Manage Payment*). It should show **no** payment method / *Free Tier*. Screenshot `C1-billing.png`. **Do not click Upgrade.**
+2. ☰ menu → **Billing & Cost Management** → **Payment method** (or *Upgrade and Manage Payment*). The account type must be **Free Tier** (not *Pay As You Go*). A card may be listed: Oracle asks most users for one at sign-up for identity verification (USD 1 temporary hold) and charges it only if the account is upgraded. Screenshot `C1-billing.png`. **Never click Upgrade.** If it says *Pay As You Go*, stop and tell Claude Code.
 
 ### C2. MFA
 1. Profile icon → **My profile** → **Security** (or *Multifactor authentication*). It must show an enrolled **mobile app (TOTP)** or security key. If not: **Enable multifactor authentication** and follow the QR steps.

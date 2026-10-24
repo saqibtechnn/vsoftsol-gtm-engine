@@ -26,10 +26,12 @@ HARD RULES
 6. Take screenshots only of settings pages. Never take one that shows a secret value. Save them to
    Documents\VGE-evidence\D1 on this PC, never to the GitHub repo (it is public).
 7. If a screen does not match the guide, stop and describe what you see. Do not guess.
+8. Never change repository rulesets, branch protection, or any repository Settings page. They
+   were set deliberately in D1 and a removed rule was already found and restored once.
 
 WHAT YOU DO vs WHAT THE OWNER DOES
 
-Part A (push test): OWNER STEP. The owner runs two commands in Git Bash (guide Part A).
+Part A (push test): ALREADY DONE (2026-10-24, both repos PASS). Skip it.
 
 Part B, GitHub
 - B1: open Settings > Password and authentication, screenshot the 2FA status (no codes visible).

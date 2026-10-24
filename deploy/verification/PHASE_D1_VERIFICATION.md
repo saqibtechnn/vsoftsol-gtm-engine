@@ -102,8 +102,38 @@ $ bash deploy/scripts/d1/apply_site_ruleset.sh saqibtechnn/vsoftsol-gtm-engine -
 $ gh api repos/saqibtechnn/vsoftsol-gtm-engine/rules/branches/main --jq '[.[].type]'
 ["deletion","non_fast_forward","required_signatures","pull_request"]
 ```
-- **Result:** Control applied. Direct-push denial test on this repo: NOT RUN (same classifier restriction; owner runs `verify_site_push_blocked.sh saqibtechnn/vsoftsol-gtm-engine --confirm`).
-- **Notes:** existing commits are unsigned, so PRs into `main` must be **squash-merged** (GitHub signs the squash commit); a plain merge would carry unsigned commits and be rejected by `required_signatures`.
+- **Result:** **PASS** (owner ran the denial test, 2026-10-24):
+```
+$ bash deploy/scripts/d1/verify_site_push_blocked.sh saqibtechnn/vsoftsol-gtm-engine --confirm
+== Active rules on saqibtechnn/vsoftsol-gtm-engine:main
+deletion,non_fast_forward,pull_request,required_signatures
+== Cloning saqibtechnn/vsoftsol-gtm-engine (depth 1) into a temp dir
+== Attempting: git push origin HEAD:main
+remote: error: GH013: Repository rule violations found for refs/heads/main.
+remote: - Changes must be made through a pull request.
+remote: - Commits must have verified signatures.
+remote:   Found 1 violation:
+remote:   763a44cebec72de5432d2ec691016e05b00f6dbf
+ ! [remote rejected] HEAD -> main (push declined due to repository rule violations)
+error: failed to push some refs to 'https://github.com/saqibtechnn/vsoftsol-gtm-engine.git'
+push exit code: 1
+RESULT: PASS - direct push to main was rejected by repository rules
+```
+- **Site repo, same day:** **NOT RUN — control regressed (D1-F5):**
+```
+$ bash deploy/scripts/d1/verify_site_push_blocked.sh saqibtechnn/vsoftsol-website --confirm
+== Active rules on saqibtechnn/vsoftsol-website:main
+deletion,non_fast_forward,required_signatures
+ERROR: rule 'pull_request' is not active on main; not attempting the push
+$ gh api repos/saqibtechnn/vsoftsol-website/rulesets/24366860/history --jq '.[]|{version_id,updated_at,actor}'
+{"actor":{"id":312611268,"type":"User"},"updated_at":"2026-10-07T16:29:40.936+03:00","version_id":52274135}
+{"actor":{"id":312611268,"type":"User"},"updated_at":"2026-10-07T16:25:49.557+03:00","version_id":52273734}
+{"actor":{"id":312611268,"type":"User"},"updated_at":"2026-10-02T16:44:13.041+03:00","version_id":51697541}
+$ gh api user/312611268 --jq .login
+saqibtechnn
+```
+  PR #2 merged at 13:39 UTC, ten minutes after the second edit; PRs #4–#7 since. All `main` commits since 2026-10-07 came through PRs and are signature-verified, so no unreviewed change is known to have landed. The push-denial guard in the script worked as designed (it refused to push while the rule was missing).
+- **Notes:** existing commits are unsigned, so PRs into `main` must be **squash-merged** (GitHub signs the squash commit).
 
 ### Criterion: Confirm MFA cannot be bypassed on any account in the path
 - **Result:** **NOT RUN.** Cannot be read with the available token:
@@ -149,6 +179,7 @@ suspicious filenames above (blank = none)
 | D1-F2 | Medium | Operator `gh` token has `repo` scope on all repos | Open | Owner decision (TOKEN_INVENTORY §C) |
 | D1-F3 | Medium | Site is on Vercel Hobby (owner 2026-10-07), which is non-commercial only, for a commercial site | OPEN — DECISIONS #26 | Owner decision; not a D1 blocker |
 | D1-F4 | Low | `DECISIONS.md` sign-off rule contradicted the gate commit | **Resolved** — owner ruling recorded in DECISIONS.md header | — |
+| D1-F5 | High | Site ruleset `protect-main` edited 2026-10-07 by account `saqibtechnn` (owner, or a session using the owner's `repo`-scoped `gh` token): `pull_request` rule removed. Direct pushes of signed commits to the live site's `main` are no longer blocked | **Open — owner decision** | Owner confirms who changed it and why; restore with `apply_site_ruleset.sh saqibtechnn/vsoftsol-website --apply` (owner merges own PRs via the PR-only admin bypass), then re-run the push test. Also narrows TOKEN_INVENTORY §C |
 
 ## 7. Known limitations
 - Single operator: controls constrain machines and make owner actions visible; they cannot stop the owner.

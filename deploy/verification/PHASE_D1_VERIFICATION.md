@@ -217,6 +217,22 @@ IDENTITY_AND_ACCESS.md, TOKEN_INVENTORY.md, BREAK_GLASS.md, D1_ACCOUNT_SETUP.md 
 ## 10. Rollback path
 `git revert` the D1 commit. No external state was changed in this session.
 
+## 10a. Status snapshot (2026-10-24, live read-only checks)
+| Item | State | Evidence |
+|---|---|---|
+| Site repo `protect-main` | **Active**: deletion, non_fast_forward, required_signatures, pull_request. Push test **PASS** | §4; restored after D1-F5 |
+| VGE repo `protect-main` | **Active**, same four rules. Push test **PASS** | §4 |
+| VGE repo secret scanning + push protection | **Enabled** | `security_and_analysis` read 2026-10-24 |
+| DNS on Cloudflare | **Confirmed** (`drew`/`macy.ns.cloudflare.com`) | NS lookup 2026-10-24 |
+| GitHub Apps `vge-site-bot`, `vge-repo-reader` | **Not found**: `GET /apps/<slug>` 404 for both. Most likely not created yet | Part B pending |
+| Codespaces secrets | **Cannot be read** with the operator token (403); owner confirms in Part F1 | — |
+| OCI (region, Free Tier, MFA, budget, IAM, policy) | **Pending**: owner-stated only (A4, A5); no evidence | Part C |
+| Cloudflare DNS token, members, 2FA | **Pending** | Part D |
+| Vercel 2FA | **Pending**; owner-stated | Part E |
+| Scope + revocation checks (`run_all_checks.sh`) | **Not run**; needs B–D | Part F |
+| Break-glass envelope + drill | **Not done** | Part G |
+| Hosting | Owner raised "run from local machine only" on 2026-10-24, then chose to **keep the current approach** (OCI + Bastion) the same day. No decision changed | chat |
+
 ## 11. Recommendation to the gate
 **BLOCKED — do not mark PASS.** To unblock:
 1. All D1 inputs are answered (2026-10-07): product repos (A3), no social platforms (A7), Vercel Hobby (A8; DECISIONS #26 OPEN, not a D1 blocker), dynamic IP (bastion allowlist `0.0.0.0/0`). Owner-stated items (A4, A5) still need the runbook evidence.

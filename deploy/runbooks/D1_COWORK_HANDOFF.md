@@ -36,8 +36,8 @@ Part A (push test): ALREADY DONE (2026-10-24, both repos PASS). Skip it.
 Part B, GitHub
 - B1: open Settings > Password and authentication, screenshot the 2FA status (no codes visible).
   Recovery codes: OWNER STEP (view, download, print, delete).
-- B2: OWNER STEP (key generation in Git Bash). You may open Settings > SSH and GPG keys > New SSH
-  key and set "Key type: Signing Key"; the owner pastes the public key.
+- B2: a signing key already exists on the account (seen 2026-10-24). Open Settings > SSH and GPG
+  keys and confirm a key is listed under "Signing keys"; report its title only. Do not add or remove keys.
 - B3: create GitHub App "vge-site-bot" with exactly the settings in the guide (webhook inactive;
   Contents read and write; Pull requests read and write; everything else No access; only on this
   account). Record the App ID. "Generate a private key": OWNER STEP. Install on vsoftsol-website

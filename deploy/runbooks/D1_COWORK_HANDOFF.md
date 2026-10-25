@@ -97,3 +97,5 @@ REPORT WHEN FINISHED (paste-ready for Claude Code)
 1. Do the remaining **OWNER STEPS**, which Cowork lists.
 2. Do Part A, Part F (`run_all_checks.sh`) and Part G yourself, as in `D1_ACCOUNT_SETUP.md`.
 3. Paste Cowork's report, the Part A output and `/tmp/d1-checks.txt` into the Claude Code chat.
+
+Prefer one task per part? See [D1_COWORK_STEP_PROMPTS.md](D1_COWORK_STEP_PROMPTS.md).

@@ -27,7 +27,7 @@ Memory budget (Compose `limits`):
 | redis | 512 MB |
 | wal-g / backup sidecar | 256 MB |
 | dispatcher | 256 MB |
-| egress-proxy, caddy, cloudflared | 128 MB each |
+| egress-proxy, caddy | 128 MB each (cloudflared removed, DECISIONS #25) |
 | **Total limits** | **8576 MB** of 12288 MB, leaving ≈3.6 GB for the OS and page cache |
 
 **Idle-reclaim note (DECISIONS #21):** without AI work, CPU and network will sit well below Oracle's 20% threshold. Memory is what keeps the instance out of reclamation: Postgres shared buffers + page cache + the resident stack must stay above 20% of 12 GB (≈2.5 GB). D7 alerts if memory p95 approaches that line. No synthetic load is generated.
@@ -43,7 +43,7 @@ Free allowance: 120 compute hours + 15 GB storage per month; usage is blocked, n
 |---|---|---|---|
 | Production | A1 compute, 100 GB block, object storage | OCI Always Free | 0.00 |
 | Production | Off-provider backup copy | Backblaze B2 free tier (≤10 GB) or equivalent; confirmed in D4 | 0.00 |
-| Production | Cloudflare Tunnel + Access, Grafana Cloud free, external uptime free tier, GitHub Free, GHCR | free tiers | 0.00 |
+| Production | OCI Bastion (free), Grafana Cloud free, external uptime free tier, GitHub Free, GHCR | free tiers | 0.00 |
 | Production | Sending subdomain of vsoftsol.com | existing domain | 0.00 |
 | Production | Email sending | draft-only; the owner sends by hand | 0.00 |
 | Production | LLM | deferred (DECISIONS #16); nothing calls an LLM | 0.00 |
@@ -61,6 +61,6 @@ For the record, the modelled alternatives were: USD 409.17/month (plan defaults,
 | Monthly ceiling | **USD 0** | DECISIONS #23 |
 | OCI | Always-Free-only tenancy (cannot incur charges) + budget alert at **USD 0.01** | OCI Budgets (D1) |
 | GitHub | **No payment method** on the account: Codespaces and Actions minutes block rather than bill | GitHub billing settings (D1) |
-| Cloudflare, Grafana Cloud, uptime monitor, Backblaze | Free plans, no payment method where the provider allows it | D1 account setup |
+| Cloudflare (DNS only), Grafana Cloud, uptime monitor, Backblaze | Free plans, no payment method where the provider allows it | D1 account setup |
 | LLM | No provider account with billing | DECISIONS #16 |
 | Monthly check | Every provider's billing page reviewed once a month; any charge is an incident | Plan §6 monthly operations |
